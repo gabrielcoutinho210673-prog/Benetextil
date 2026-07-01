@@ -249,9 +249,9 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--body);color:#2
 let DEMO_MODE = false;
 let supabaseClient = null;
 
-// Credenciais lidas dinamicamente do APP_CONFIG (carregado pelo config.js ou /api/config)
-const getSupaUrl = () => window.APP_CONFIG?.supabase_url || '';
-const getSupaKey = () => window.APP_CONFIG?.supabase_key || '';
+// Credenciais Supabase — banco protegido por RLS + Auth (repositório privado)
+const getSupaUrl = () => window.APP_CONFIG?.supabase_url || 'https://gcbqxfkpgoyxbammjdcs.supabase.co';
+const getSupaKey = () => window.APP_CONFIG?.supabase_key || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjYnF4ZmtwZ295eGJhbW1qZGNzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4OTYxMjksImV4cCI6MjA5ODQ3MjEyOX0.4q9JxwaT34lEL9Ubw4J2ZVgpgjxGW1OQt40oMMePVN8';
 
 
 // Cache em memória
@@ -2284,14 +2284,8 @@ async function renderRelatorios() {
 // BOOT
 // ═══════════════════════════════════════════════════════
 window.addEventListener('DOMContentLoaded', async () => {
-  // Local: usa config.js — Na internet (Netlify): busca da função segura
-  if (!window.APP_CONFIG) {
-    try {
-      const res = await fetch('/api/config');
-      if (res.ok) window.APP_CONFIG = await res.json();
-    } catch(e) {}
-  }
   supabaseClient = window.supabase.createClient(getSupaUrl(), getSupaKey());
+  if (!getSupaUrl()) return; // aguarda config.js carregar
   const { data: { session } } = await supabaseClient.auth.getSession();
   if (session) iniciarApp();
 });
