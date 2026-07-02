@@ -872,10 +872,23 @@ function formCliente(c={}) {
     <div class="col-12"><label class="form-label">Endereço</label><input class="form-control" id="cEnd" value="${v('endereco')}"></div>
 
     ${secTitle('tshirt','DESCRIÇÃO DO SERVIÇO')}
-    <div class="col-md-4"><label class="form-label">Tipo de Peça</label><input class="form-control" id="cTipoPeca" value="${v('tipo_peca')}"></div>
-    <div class="col-md-2"><label class="form-label">Quantidade</label><input type="number" class="form-control" id="cQtd" value="${v('quantidade')}" min="0"></div>
-    <div class="col-md-3"><label class="form-label">Tamanho(s)</label><input class="form-control" id="cTamanhos" placeholder="Ex: P, M, G, GG" value="${v('tamanhos')}"></div>
-    <div class="col-md-3"><label class="form-label">Cor(s)</label><input class="form-control" id="cCores" value="${v('cores')}"></div>
+    <div class="col-12 d-flex align-items-center gap-3 mb-1">
+      <label class="form-label mb-0 fw-semibold">Quantos tipos de peça?</label>
+      <select class="form-select" style="width:90px" id="cQtdTipos" onchange="renderLinhasPeca()">
+        <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+        <option value="4">4</option><option value="5">5</option>
+      </select>
+    </div>
+    <div class="col-12" id="cLinhasPeca">
+      ${[1,2,3,4,5].map(i=>`
+      <div class="row g-2 mb-2 peca-linha" id="pecaLinha${i}" style="${i>1?'display:none':''}">
+        <div class="col-12"><small class="text-muted fw-semibold">PEÇA ${i}</small></div>
+        <div class="col-md-4"><label class="form-label">Tipo de Peça</label><input class="form-control" id="cTipoPeca${i}" value="${v(i===1?'tipo_peca':`peca${i}_tipo`)}"></div>
+        <div class="col-md-2"><label class="form-label">Quantidade</label><input type="number" class="form-control" id="cQtd${i}" min="0" value="${v(i===1?'quantidade':`peca${i}_qtd`)}"></div>
+        <div class="col-md-3"><label class="form-label">Tamanho(s)</label><input class="form-control" id="cTamanhos${i}" placeholder="P, M, G, GG" value="${v(i===1?'tamanhos':`peca${i}_tamanhos`)}"></div>
+        <div class="col-md-3"><label class="form-label">Cor(s)</label><input class="form-control" id="cCores${i}" value="${v(i===1?'cores':`peca${i}_cores`)}"></div>
+      </div>`).join('')}
+    </div>
     <div class="col-md-3"><label class="form-label">Tecido</label><input class="form-control" id="cTecido" value="${v('tecido')}"></div>
     <div class="col-md-2"><label class="form-label">Valor Gasto no Tecido (R$)</label><div class="input-group"><span class="input-group-text">R$</span><input type="number" class="form-control" id="cTecidoValor" step="0.01" min="0" value="${v('tecido_valor')}" oninput="calcResumo()"></div></div>
     <div class="col-md-3"><label class="form-label">Estampa / Bordado</label><input class="form-control" id="cEstampa" value="${v('estampa')}"></div>
@@ -987,6 +1000,11 @@ function formCliente(c={}) {
     }
     calcTotalCostura();
   }
+  // restaurar peças 2-5 ao editar
+  const qtdPecas = [2,3,4,5].filter(i => c[`peca${i}_tipo`]).length + 1;
+  const selTipos = document.getElementById('cQtdTipos');
+  if (selTipos) { selTipos.value = qtdPecas; renderLinhasPeca(); }
+
   setTimeout(calcResumo, 150);
 }
 
@@ -1060,6 +1078,14 @@ function calcTotalCostura() {
   calcResumo();
 }
 
+function renderLinhasPeca() {
+  const n = parseInt(document.getElementById('cQtdTipos')?.value)||1;
+  for (let i = 1; i <= 5; i++) {
+    const el = document.getElementById('pecaLinha'+i);
+    if (el) el.style.display = i <= n ? '' : 'none';
+  }
+}
+
 function calcResumo() {
   const tecido   = parseFloat(document.getElementById('cTecidoValor')?.value)||0;
   const botao    = parseFloat(document.getElementById('cAviaBotao')?.value)||0;
@@ -1113,10 +1139,26 @@ async function salvarCliente(id) {
     telefone:       document.getElementById('cTel').value,
     endereco:       document.getElementById('cEnd').value,
     data_pedido:    document.getElementById('cDataPedido').value,
-    tipo_peca:      document.getElementById('cTipoPeca').value,
-    quantidade:     document.getElementById('cQtd').value,
-    tamanhos:       document.getElementById('cTamanhos').value,
-    cores:          document.getElementById('cCores').value,
+    tipo_peca:      document.getElementById('cTipoPeca1').value,
+    quantidade:     document.getElementById('cQtd1').value,
+    tamanhos:       document.getElementById('cTamanhos1').value,
+    cores:          document.getElementById('cCores1').value,
+    peca2_tipo:     document.getElementById('cTipoPeca2').value,
+    peca2_qtd:      document.getElementById('cQtd2').value,
+    peca2_tamanhos: document.getElementById('cTamanhos2').value,
+    peca2_cores:    document.getElementById('cCores2').value,
+    peca3_tipo:     document.getElementById('cTipoPeca3').value,
+    peca3_qtd:      document.getElementById('cQtd3').value,
+    peca3_tamanhos: document.getElementById('cTamanhos3').value,
+    peca3_cores:    document.getElementById('cCores3').value,
+    peca4_tipo:     document.getElementById('cTipoPeca4').value,
+    peca4_qtd:      document.getElementById('cQtd4').value,
+    peca4_tamanhos: document.getElementById('cTamanhos4').value,
+    peca4_cores:    document.getElementById('cCores4').value,
+    peca5_tipo:     document.getElementById('cTipoPeca5').value,
+    peca5_qtd:      document.getElementById('cQtd5').value,
+    peca5_tamanhos: document.getElementById('cTamanhos5').value,
+    peca5_cores:    document.getElementById('cCores5').value,
     tecido:         document.getElementById('cTecido').value,
     tecido_valor:      parseFloat(document.getElementById('cTecidoValor').value)||0,
     aviamento_botao:   parseFloat(document.getElementById('cAviaBotao').value)||0,
