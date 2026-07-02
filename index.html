@@ -2552,8 +2552,8 @@ async function renderFinanceiro(sub='pagar') {
     };
 
     window.limparFiltroFinanceiro = function(s) {
-      document.getElementById('filtDe').value = primeiroDia;
-      document.getElementById('filtAte').value = ultimoDia;
+      document.getElementById('filtDe').value = '';
+      document.getElementById('filtAte').value = '';
       document.getElementById('filtStatus').value = '';
       renderTabelaFinanceiro(window._finDados);
     };
