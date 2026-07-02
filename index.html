@@ -981,8 +981,9 @@ function formCliente(c={}) {
     document.getElementById('costuraQtd').value = c.costura_qtd;
     updateCostura();
     for(let i=1;i<=c.costura_qtd;i++) {
-      const en = document.getElementById(`costura_${i}`); if(en) en.value=c[`costura_${i}`]||'';
-      const ev = document.getElementById(`costura_val_${i}`); if(ev) ev.value=c[`costura_val_${i}`]||'';
+      const en = document.getElementById(`costura_${i}`);       if(en) en.value=c[`costura_${i}`]||'';
+      const eq = document.getElementById(`costura_qtd_${i}`);   if(eq) eq.value=c[`costura_qtd_${i}`]||'';
+      const ev = document.getElementById(`costura_val_${i}`);   if(ev) ev.value=c[`costura_val_${i}`]||'';
     }
     calcTotalCostura();
   }
@@ -1008,17 +1009,33 @@ function updateCostura() {
   for(let i=1;i<=qtd;i++) {
     container.innerHTML += `
       <div class="col-12">
-        <div class="d-flex align-items-center gap-2 p-2 rounded mb-1" style="background:#f8f9fa;border:1px solid #dee2e6">
-          <span class="badge bg-primary rounded-circle d-flex align-items-center justify-content-center" style="width:24px;height:24px;font-size:12px">${i}</span>
-          <div class="flex-grow-1">
-            <label class="form-label small mb-1">Nome da Costureira ${i}</label>
-            <input class="form-control form-control-sm" id="costura_${i}" placeholder="Nome da costureira ${i}">
+        <div class="p-2 rounded mb-1" style="background:#f8f9fa;border:1px solid #dee2e6">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="badge bg-primary rounded-circle d-flex align-items-center justify-content-center" style="width:24px;height:24px;font-size:12px;flex-shrink:0">${i}</span>
+            <strong class="small text-primary">COSTUREIRA ${i}</strong>
           </div>
-          <div style="width:160px">
-            <label class="form-label small mb-1">Valor Pago (R$)</label>
-            <div class="input-group input-group-sm">
-              <span class="input-group-text">R$</span>
-              <input type="number" class="form-control form-control-sm" id="costura_val_${i}" placeholder="0,00" step="0.01" min="0" oninput="calcTotalCostura()">
+          <div class="row g-2 align-items-end">
+            <div class="col-md-4">
+              <label class="form-label small mb-1">COSTUREIRA</label>
+              <input class="form-control form-control-sm" id="costura_${i}" placeholder="Nome da costureira ${i}">
+            </div>
+            <div class="col-md-2">
+              <label class="form-label small mb-1">QTD. PEÇAS</label>
+              <input type="number" class="form-control form-control-sm" id="costura_qtd_${i}" placeholder="0" min="0" oninput="calcTotalCostura()">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label small mb-1">VALOR POR PEÇA (R$)</label>
+              <div class="input-group input-group-sm">
+                <span class="input-group-text">R$</span>
+                <input type="number" class="form-control form-control-sm" id="costura_val_${i}" placeholder="0,00" step="0.01" min="0" oninput="calcTotalCostura()">
+              </div>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label small mb-1">TOTAL PAGO</label>
+              <div class="input-group input-group-sm">
+                <span class="input-group-text">R$</span>
+                <input type="text" class="form-control form-control-sm bg-light" id="costura_total_${i}" placeholder="0,00" readonly>
+              </div>
             </div>
           </div>
         </div>
@@ -1031,7 +1048,12 @@ function calcTotalCostura() {
   const qtd = parseInt(document.getElementById('costuraQtd')?.value)||0;
   let total = 0;
   for(let i=1;i<=qtd;i++) {
-    total += parseFloat(document.getElementById(`costura_val_${i}`)?.value)||0;
+    const pecas = parseFloat(document.getElementById(`costura_qtd_${i}`)?.value)||0;
+    const valPeca = parseFloat(document.getElementById(`costura_val_${i}`)?.value)||0;
+    const subtotal = pecas * valPeca;
+    total += subtotal;
+    const elT = document.getElementById(`costura_total_${i}`);
+    if (elT) elT.value = subtotal.toFixed(2).replace('.',',');
   }
   const el = document.getElementById('costuraTotalValor');
   if (el) el.textContent = total.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
@@ -1049,7 +1071,11 @@ function calcResumo() {
   const cadarco    = parseFloat(document.getElementById('cAviaCadarco')?.value)||0;
   const qtdC     = parseInt(document.getElementById('costuraQtd')?.value)||0;
   let costura = 0;
-  for(let i=1;i<=qtdC;i++) costura += parseFloat(document.getElementById(`costura_val_${i}`)?.value)||0;
+  for(let i=1;i<=qtdC;i++) {
+    const q = parseFloat(document.getElementById(`costura_qtd_${i}`)?.value)||0;
+    const v = parseFloat(document.getElementById(`costura_val_${i}`)?.value)||0;
+    costura += q * v;
+  }
   const valorTotal = parseFloat(document.getElementById('cValorTotal')?.value)||0;
   const custoTotal = tecido + botao + ziper + elastico + ilhos + entretela + cordao + cadarco + costura;
   const lucro = valorTotal - custoTotal;
@@ -1073,11 +1099,13 @@ async function salvarCliente(id) {
   const dinamicos = {};
   for(let i=1;i<=4;i++) dinamicos[`silk_${i}`] = document.getElementById(`silk_${i}`)?.value||'';
   for(let i=1;i<=5;i++) dinamicos[`bordado_${i}`] = document.getElementById(`bordado_${i}`)?.value||'';
+  let costuraTotal = 0;
   for(let i=1;i<=5;i++) {
-    dinamicos[`costura_${i}`] = document.getElementById(`costura_${i}`)?.value||'';
+    dinamicos[`costura_${i}`]     = document.getElementById(`costura_${i}`)?.value||'';
+    dinamicos[`costura_qtd_${i}`] = parseFloat(document.getElementById(`costura_qtd_${i}`)?.value)||0;
     dinamicos[`costura_val_${i}`] = parseFloat(document.getElementById(`costura_val_${i}`)?.value)||0;
+    costuraTotal += dinamicos[`costura_qtd_${i}`] * dinamicos[`costura_val_${i}`];
   }
-  const costuraTotal = Object.keys(dinamicos).filter(k=>k.startsWith('costura_val_')).reduce((s,k)=>s+(dinamicos[k]||0),0);
   dinamicos.costura_total = costuraTotal;
 
   const data = {
