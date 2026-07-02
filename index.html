@@ -886,6 +886,9 @@ function formCliente(c={}) {
     <div class="col-md-3"><label class="form-label">ZÍPER (R$)</label><div class="input-group"><span class="input-group-text">R$</span><input type="number" class="form-control" id="cAviaZiper" step="0.01" min="0" value="${v('aviamento_ziper')}" oninput="calcResumo()"></div></div>
     <div class="col-md-3"><label class="form-label">ELÁSTICO (R$)</label><div class="input-group"><span class="input-group-text">R$</span><input type="number" class="form-control" id="cAviaElastico" step="0.01" min="0" value="${v('aviamento_elastico')}" oninput="calcResumo()"></div></div>
     <div class="col-md-3"><label class="form-label">ILHÓS (R$)</label><div class="input-group"><span class="input-group-text">R$</span><input type="number" class="form-control" id="cAviaIlhos" step="0.01" min="0" value="${v('aviamento_ilhos')}" oninput="calcResumo()"></div></div>
+    <div class="col-md-3"><label class="form-label">ENTRETELA (R$)</label><div class="input-group"><span class="input-group-text">R$</span><input type="number" class="form-control" id="cAviaEntretela" step="0.01" min="0" value="${v('aviamento_entretela')}" oninput="calcResumo()"></div></div>
+    <div class="col-md-3"><label class="form-label">CORDÃO (R$)</label><div class="input-group"><span class="input-group-text">R$</span><input type="number" class="form-control" id="cAviaCordao" step="0.01" min="0" value="${v('aviamento_cordao')}" oninput="calcResumo()"></div></div>
+    <div class="col-md-3"><label class="form-label">CADARÇO (R$)</label><div class="input-group"><span class="input-group-text">R$</span><input type="number" class="form-control" id="cAviaCadarco" step="0.01" min="0" value="${v('aviamento_cadarco')}" oninput="calcResumo()"></div></div>
 
     ${secTitle('dollar-sign','PRAZO E VALORES')}
     <div class="col-md-3"><label class="form-label">Data de Entrega</label><input type="date" class="form-control" id="cDataEntrega" value="${v('data_entrega')}"></div>
@@ -1040,12 +1043,15 @@ function calcResumo() {
   const botao    = parseFloat(document.getElementById('cAviaBotao')?.value)||0;
   const ziper    = parseFloat(document.getElementById('cAviaZiper')?.value)||0;
   const elastico = parseFloat(document.getElementById('cAviaElastico')?.value)||0;
-  const ilhos    = parseFloat(document.getElementById('cAviaIlhos')?.value)||0;
+  const ilhos      = parseFloat(document.getElementById('cAviaIlhos')?.value)||0;
+  const entretela  = parseFloat(document.getElementById('cAviaEntretela')?.value)||0;
+  const cordao     = parseFloat(document.getElementById('cAviaCordao')?.value)||0;
+  const cadarco    = parseFloat(document.getElementById('cAviaCadarco')?.value)||0;
   const qtdC     = parseInt(document.getElementById('costuraQtd')?.value)||0;
   let costura = 0;
   for(let i=1;i<=qtdC;i++) costura += parseFloat(document.getElementById(`costura_val_${i}`)?.value)||0;
   const valorTotal = parseFloat(document.getElementById('cValorTotal')?.value)||0;
-  const custoTotal = tecido + botao + ziper + elastico + ilhos + costura;
+  const custoTotal = tecido + botao + ziper + elastico + ilhos + entretela + cordao + cadarco + costura;
   const lucro = valorTotal - custoTotal;
   const elC = document.getElementById('resumoCustoTotal');
   const elL = document.getElementById('resumoLucro');
@@ -1088,7 +1094,10 @@ async function salvarCliente(id) {
     aviamento_botao:   parseFloat(document.getElementById('cAviaBotao').value)||0,
     aviamento_ziper:   parseFloat(document.getElementById('cAviaZiper').value)||0,
     aviamento_elastico:parseFloat(document.getElementById('cAviaElastico').value)||0,
-    aviamento_ilhos:   parseFloat(document.getElementById('cAviaIlhos').value)||0,
+    aviamento_ilhos:      parseFloat(document.getElementById('cAviaIlhos').value)||0,
+    aviamento_entretela:  parseFloat(document.getElementById('cAviaEntretela').value)||0,
+    aviamento_cordao:     parseFloat(document.getElementById('cAviaCordao').value)||0,
+    aviamento_cadarco:    parseFloat(document.getElementById('cAviaCadarco').value)||0,
     estampa:           document.getElementById('cEstampa').value,
     obs_servico:    document.getElementById('cObsServico').value,
     data_entrega:   document.getElementById('cDataEntrega').value,
@@ -1132,7 +1141,7 @@ async function salvarCliente(id) {
       const custos = [];
       if (data.tecido_valor > 0)       custos.push({ desc: `Tecido — ${desc}`,     val: data.tecido_valor });
       if (data.costura_total > 0)      custos.push({ desc: `Costura — ${desc}`,    val: data.costura_total });
-      const totalAviamentos = (data.aviamento_botao||0)+(data.aviamento_ziper||0)+(data.aviamento_elastico||0)+(data.aviamento_ilhos||0);
+      const totalAviamentos = (data.aviamento_botao||0)+(data.aviamento_ziper||0)+(data.aviamento_elastico||0)+(data.aviamento_ilhos||0)+(data.aviamento_entretela||0)+(data.aviamento_cordao||0)+(data.aviamento_cadarco||0);
       if (totalAviamentos > 0) custos.push({ desc: `Aviamentos — ${desc}`, val: totalAviamentos });
 
       for (const c of custos) {
