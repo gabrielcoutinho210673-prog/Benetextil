@@ -1274,6 +1274,22 @@ function formSublimacao(r={}) {
   openModal(`<i class="fas fa-paint-brush me-2"></i>${r.id?'Editar':'Novo'} Registro de Sublimação`,
   `<div class="row g-3">
     <div class="col-12"><div class="d-flex align-items-center gap-2 mb-1" style="border-bottom:2px solid #4361ee;padding-bottom:4px">
+      <i class="fas fa-user text-primary"></i><strong class="text-primary">DADOS DO CLIENTE</strong></div></div>
+    <div class="col-12">
+      <label class="form-label fw-semibold">BUSCAR CLIENTE CADASTRADO</label>
+      <div class="input-group">
+        <input type="text" class="form-control" id="sBuscaCliente" placeholder="Digite o nome do cliente para buscar e preencher automaticamente..."
+          oninput="buscarClienteSubl(this.value)">
+        <button class="btn btn-outline-secondary" onclick="limparClienteSubl()"><i class="fas fa-times"></i></button>
+      </div>
+      <div id="sListaClientes" class="list-group mt-1" style="position:absolute;z-index:9999;width:calc(100% - 48px);display:none"></div>
+    </div>
+    <div class="col-md-6"><label class="form-label fw-semibold">NOME *</label><input class="form-control" id="sNomeCliente" value="${v('nome_cliente')}" placeholder="Nome do cliente"></div>
+    <div class="col-md-3"><label class="form-label fw-semibold">TELEFONE</label><input class="form-control" id="sTelefoneCliente" value="${v('telefone_cliente')}" placeholder="(00) 00000-0000"></div>
+    <div class="col-md-3"><label class="form-label fw-semibold">DATA DO PEDIDO</label><input type="date" class="form-control" id="sDataPedido" value="${v('data_pedido')||localDateStr()}"></div>
+    <div class="col-12"><label class="form-label fw-semibold">ENDEREÇO</label><input class="form-control" id="sEndereco" value="${v('endereco_cliente')}" placeholder="Endereço do cliente"></div>
+
+    <div class="col-12 mt-1"><div class="d-flex align-items-center gap-2 mb-1" style="border-bottom:2px solid #4361ee;padding-bottom:4px">
       <i class="fas fa-info-circle text-primary"></i><strong class="text-primary">IDENTIFICAÇÃO</strong></div></div>
     <div class="col-12"><label class="form-label">Descrição *</label><input class="form-control" id="sDesc" value="${v('descricao')}" placeholder="Ex: Camiseta polo azul marinho"></div>
 
@@ -1350,6 +1366,36 @@ function formSublimacao(r={}) {
   setTimeout(calcTotalSublimacao, 100);
 }
 
+async function buscarClienteSubl(q) {
+  const lista = document.getElementById('sListaClientes');
+  if (!lista) return;
+  if (!q || q.length < 2) { lista.style.display='none'; return; }
+  const todos = await getAll('clientes_cad');
+  const res = todos.filter(c => c.nome.toLowerCase().includes(q.toLowerCase())).slice(0,6);
+  if (!res.length) { lista.style.display='none'; return; }
+  lista.innerHTML = res.map(c => `<button type="button" class="list-group-item list-group-item-action py-1" onclick="preencherClienteSubl(${c.id})">${escHtml(c.nome)}${c.telefone?' — '+escHtml(c.telefone):''}</button>`).join('');
+  lista.style.display='block';
+}
+
+async function preencherClienteSubl(id) {
+  const todos = await getAll('clientes_cad');
+  const c = todos.find(x=>x.id===id);
+  if (!c) return;
+  document.getElementById('sNomeCliente').value = c.nome||'';
+  document.getElementById('sTelefoneCliente').value = c.telefone||'';
+  document.getElementById('sEndereco').value = c.endereco||'';
+  document.getElementById('sBuscaCliente').value = c.nome||'';
+  document.getElementById('sListaClientes').style.display='none';
+}
+
+function limparClienteSubl() {
+  ['sBuscaCliente','sNomeCliente','sTelefoneCliente','sEndereco'].forEach(id=>{
+    const el = document.getElementById(id); if(el) el.value='';
+  });
+  const lista = document.getElementById('sListaClientes');
+  if (lista) lista.style.display='none';
+}
+
 function calcTotalSublimacao() {
   const qtd = parseFloat(document.getElementById('qtd_metro')?.value)||0;
   const vMetro = parseFloat(document.getElementById('valor_metro')?.value)||0;
@@ -1377,6 +1423,10 @@ async function salvarSublimacao(id) {
   if (!descricao) { toast('Descrição é obrigatória','danger'); return; }
   const data = {
     descricao,
+    nome_cliente:     document.getElementById('sNomeCliente').value.trim(),
+    telefone_cliente: document.getElementById('sTelefoneCliente').value.trim(),
+    data_pedido:      document.getElementById('sDataPedido').value,
+    endereco_cliente: document.getElementById('sEndereco').value.trim(),
     tecido:      document.getElementById('sTecido').value,
     cod_cor:     document.getElementById('sCodCor').value,
     qtd_metro:      parseFloat(document.getElementById('qtd_metro').value)||0,
@@ -1437,7 +1487,7 @@ async function salvarSublimacao(id) {
         const hoje = localDateStr();
         await insert('contas_receber', {
           descricao:  `Sublimação — ${descricao}`,
-          cliente:    descricao,
+          cliente:    data.nome_cliente || descricao,
           valor:      data.valor_venda,
           vencimento: hoje,
           status:     'pendente',
