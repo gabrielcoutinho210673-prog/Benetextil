@@ -163,6 +163,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--body);color:#2
             <li><button onclick="nav('clientes')"><i class="fas fa-shirt"></i>Uniforme</button></li>
             <li><button onclick="nav('sublimacao')"><i class="fas fa-palette"></i>Sublimação</button></li>
             <li><button onclick="nav('produtos')"><i class="fas fa-warehouse"></i>Estoque</button></li>
+            <li><button onclick="nav('compras')"><i class="fas fa-cart-shopping"></i>Compras da Empresa</button></li>
           </ul>
         </div>
       </li>
@@ -258,7 +259,7 @@ const getSupaKey = () => window.APP_CONFIG?.supabase_key || 'eyJhbGciOiJIUzI1NiI
 const Cache = {
   clientes: null, produtos: null, categorias: null, fornecedores: null,
   vendas: null, itens_venda: null, caixa: null, mov_caixa: null,
-  kardex: null, contas_pagar: null, contas_receber: null, sublimacao: null,
+  kardex: null, contas_pagar: null, contas_receber: null, sublimacao: null, compras: null,
   clear(sheet) { if(sheet) this[sheet]=null; else Object.keys(this).forEach(k=>{ if(typeof this[k]!=='function') this[k]=null; }); }
 };
 
@@ -276,6 +277,7 @@ const DemoData = {
   contas_pagar:   [],
   contas_receber: [],
   sublimacao:     [],
+  compras:        [],
 };
 
 // ═══════════════════════════════════════════════════════
@@ -469,7 +471,7 @@ function nav(page, sub='') {
   document.getElementById('sidebar').classList.remove('open');
 
   const renders = {
-    dashboard: renderDashboard, clientescad: renderClientesCad, clientes: renderClientes, sublimacao: renderSublimacao, produtos: renderProdutos,
+    dashboard: renderDashboard, clientescad: renderClientesCad, clientes: renderClientes, sublimacao: renderSublimacao, produtos: renderProdutos, compras: renderCompras,
     categorias: renderCategorias, fornecedores: renderFornecedores, pdv: renderPDV,
     caixa: renderCaixa, kardex: renderKardex, financeiro: () => renderFinanceiro(sub||'pagar'),
     relatorios: renderRelatorios
@@ -1611,6 +1613,144 @@ async function salvarSublimacao(id) {
 async function delSublimacao(id, desc) {
   if (!confirm(`Excluir "${desc}"?`)) return;
   await remove('sublimacao',id); toast('Removido.'); renderSublimacao();
+}
+
+// ═══════════════════════════════════════════════════════
+// COMPRAS DA EMPRESA
+// ═══════════════════════════════════════════════════════
+
+async function renderCompras() {
+  document.getElementById('pageTitle').textContent = 'Compras da Empresa';
+  try {
+    const dados = await getAll('compras');
+    document.getElementById('pageContent').innerHTML = `
+    <div class="card">
+      <div class="card-body d-flex justify-content-between align-items-center py-3">
+        <h6><i class="fas fa-cart-shopping me-2"></i>${dados.length} compra(s)</h6>
+        <button class="btn btn-primary btn-sm" onclick="formCompra()"><i class="fas fa-plus me-1"></i>Nova Compra</button>
+      </div>
+    </div>
+    <div class="card mt-3">
+      <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+          <thead><tr>
+            <th class="ps-3">DESCRIÇÃO</th>
+            <th>FORNECEDOR</th>
+            <th>VALOR TOTAL</th>
+            <th>PARCELAS</th>
+            <th>FORMA PAGTO</th>
+            <th>DATA</th>
+            <th class="text-end pe-3">AÇÕES</th>
+          </tr></thead>
+          <tbody>
+          ${dados.length ? dados.map(r => `<tr>
+            <td class="ps-3"><strong>${escHtml(r.descricao||'—')}</strong></td>
+            <td>${escHtml(r.fornecedor||'—')}</td>
+            <td class="fw-bold text-danger">${fmtMoney(r.valor_total)}</td>
+            <td>${r.parcelas > 1 ? `${r.parcelas}x de ${fmtMoney(r.valor_total/r.parcelas)}` : 'À Vista'}</td>
+            <td>${escHtml(r.forma_pagamento||'—')}</td>
+            <td><small>${r.data_compra ? fmtDate(r.data_compra) : '—'}</small></td>
+            <td class="text-end pe-3">
+              <button class="btn btn-icon btn-outline-danger btn-sm" onclick="delCompra(${r.id},'${escHtml(r.descricao||'')}')"><i class="fas fa-trash"></i></button>
+            </td>
+          </tr>`).join('') : '<tr><td colspan="7" class="text-center text-muted py-4"><i class="fas fa-receipt fa-2x mb-2 d-block"></i>Nenhuma compra registrada</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+  } catch(e) { toast(e.message,'danger'); }
+}
+
+function formCompra() {
+  openModal(`<i class="fas fa-cart-shopping me-2"></i>Nova Compra`,
+  `<div class="row g-3">
+    <div class="col-12"><label class="form-label fw-semibold">DESCRIÇÃO *</label>
+      <input class="form-control" id="cpDesc" placeholder="Ex: Tecido, Aviamentos, Equipamento..."></div>
+    <div class="col-12"><label class="form-label fw-semibold">FORNECEDOR</label>
+      <input class="form-control" id="cpFornecedor" placeholder="Nome do fornecedor"></div>
+    <div class="col-md-6"><label class="form-label fw-semibold">VALOR TOTAL *</label>
+      <div class="input-group"><span class="input-group-text">R$</span>
+        <input type="number" class="form-control" id="cpValor" step="0.01" min="0" oninput="atualizarPreviewCompra()">
+      </div></div>
+    <div class="col-md-6"><label class="form-label fw-semibold">DATA DA COMPRA</label>
+      <input type="date" class="form-control" id="cpData" value="${localDateStr()}"></div>
+    <div class="col-md-6"><label class="form-label fw-semibold">FORMA DE PAGAMENTO</label>
+      <select class="form-select" id="cpFormaPag">
+        <option value="Dinheiro">Dinheiro</option>
+        <option value="PIX">PIX</option>
+        <option value="Cartão de Crédito">Cartão de Crédito</option>
+        <option value="Cartão de Débito">Cartão de Débito</option>
+        <option value="Boleto">Boleto</option>
+        <option value="Transferência">Transferência</option>
+      </select></div>
+    <div class="col-md-6"><label class="form-label fw-semibold">PARCELAMENTO</label>
+      <select class="form-select" id="cpParcelas" onchange="atualizarPreviewCompra()">
+        <option value="1">À Vista (1x)</option>
+        <option value="2">2x</option>
+        <option value="3">3x</option>
+        <option value="4">4x</option>
+        <option value="5">5x</option>
+      </select></div>
+    <div class="col-md-6"><label class="form-label fw-semibold">1º VENCIMENTO</label>
+      <input type="date" class="form-control" id="cpVenc" value="${localDateStr()}"></div>
+    <div class="col-12" id="cpPreview"></div>
+    <div class="col-12"><label class="form-label fw-semibold">OBSERVAÇÕES</label>
+      <input class="form-control" id="cpObs" placeholder="Observações opcionais"></div>
+  </div>`,
+  `<button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+   <button class="btn btn-primary" onclick="salvarCompra()"><i class="fas fa-save me-1"></i>Salvar</button>`
+  );
+}
+
+function atualizarPreviewCompra() {
+  const n = parseInt(document.getElementById('cpParcelas')?.value)||1;
+  const total = parseFloat(document.getElementById('cpValor')?.value)||0;
+  const el = document.getElementById('cpPreview');
+  if (!el) return;
+  if (n <= 1 || total === 0) { el.innerHTML=''; return; }
+  const parcela = total / n;
+  el.innerHTML = `<div class="p-2 rounded" style="background:#fff3cd;border:1px solid #ffc107;font-size:0.85rem">
+    <strong>${n}x de ${parcela.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</strong>
+    — será lançado em Contas a Pagar com vencimentos mensais
+  </div>`;
+}
+
+async function salvarCompra() {
+  const desc = document.getElementById('cpDesc').value.trim();
+  const valor = parseFloat(document.getElementById('cpValor').value)||0;
+  if (!desc || !valor) { toast('Preencha descrição e valor','danger'); return; }
+  const n = parseInt(document.getElementById('cpParcelas').value)||1;
+  const venc = document.getElementById('cpVenc').value;
+  const forma = document.getElementById('cpFormaPag').value;
+  const forn  = document.getElementById('cpFornecedor').value.trim();
+  const obs   = document.getElementById('cpObs').value.trim();
+  const data  = document.getElementById('cpData').value;
+  try {
+    await insert('compras', {
+      descricao: desc, fornecedor: forn, valor_total: valor,
+      parcelas: n, forma_pagamento: forma, data_compra: data, observacoes: obs, ativo: 1
+    });
+    // Lança em Contas a Pagar
+    const parcela = parseFloat((valor / n).toFixed(2));
+    const [ano, mes, dia] = venc.split('-').map(Number);
+    for (let i = 0; i < n; i++) {
+      const d = new Date(ano, mes - 1 + i, dia);
+      const vencP = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      await insert('contas_pagar', {
+        descricao: n > 1 ? `${desc} (${i+1}/${n})` : desc,
+        fornecedor: forn || 'Empresa',
+        valor: parcela, vencimento: vencP,
+        status: 'pendente', ativo: 1
+      });
+    }
+    toast(n > 1 ? `Compra salva! ${n} parcelas lançadas em Contas a Pagar.` : 'Compra salva e lançada em Contas a Pagar!');
+    closeModal(); Cache.clear('compras'); renderCompras();
+  } catch(e) { toast(e.message,'danger'); }
+}
+
+async function delCompra(id, desc) {
+  if (!confirm(`Excluir compra "${desc}"?`)) return;
+  await remove('compras', id); toast('Removida.'); Cache.clear('compras'); renderCompras();
 }
 
 // ═══════════════════════════════════════════════════════
