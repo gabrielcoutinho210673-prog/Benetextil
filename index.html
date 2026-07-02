@@ -1239,7 +1239,7 @@ async function renderSublimacao(search) {
             <tbody>
             ${dados.length ? dados.map(r => {
               const totalMetro = (parseFloat(r.valor_metro)||0)*(parseFloat(r.qtd_metro)||0);
-              const total = [totalMetro, r.uber, r.almoco, r.gasolina, r.estacionamento, r.brim].reduce((s,v)=>s+(parseFloat(v)||0),0);
+              const total = [totalMetro, r.uber, r.almoco, r.gasolina, r.estacionamento, r.brim, r.mao_obra_anderson].reduce((s,v)=>s+(parseFloat(v)||0),0);
               return `<tr>
                 <td class="ps-3"><strong>${escHtml(r.descricao||'—')}</strong></td>
                 <td>${escHtml(r.tecido||'—')}<br><small class="text-muted">${escHtml(r.cod_cor||'—')}</small></td>
@@ -1300,6 +1300,10 @@ function formSublimacao(r={}) {
       <i class="fas fa-layer-group text-primary"></i><strong class="text-primary">BRIM / TECIDO EXTRA</strong></div></div>
     ${campo('brim','Brim — Tecido')}
 
+    <div class="col-12 mt-1"><div class="d-flex align-items-center gap-2 mb-1" style="border-bottom:2px solid #198754;padding-bottom:4px">
+      <i class="fas fa-person-digging text-success"></i><strong class="text-success">MÃO DE OBRA</strong></div></div>
+    ${campo('mao_obra_anderson','Mão de obra Anderson')}
+
     <div class="col-12 mt-2">
       <div class="p-3 rounded d-flex align-items-center justify-content-between" style="background:#eef2ff;border:2px solid #4361ee">
         <div class="d-flex align-items-center gap-2">
@@ -1307,6 +1311,35 @@ function formSublimacao(r={}) {
           <strong class="text-primary fs-6">TOTAL GASTO:</strong>
         </div>
         <span class="fs-5 fw-bold text-primary" id="sublimacaoTotalDisplay">R$ 0,00</span>
+      </div>
+    </div>
+
+    <div class="col-12 mt-1"><div class="d-flex align-items-center gap-2 mb-1" style="border-bottom:2px solid #4361ee;padding-bottom:4px">
+      <i class="fas fa-dollar-sign text-primary"></i><strong class="text-primary">VALOR DE VENDA</strong></div></div>
+    <div class="col-md-4">
+      <label class="form-label fw-semibold">VALOR DE VENDA (R$)</label>
+      <div class="input-group"><span class="input-group-text">R$</span>
+        <input type="number" class="form-control" id="sValorVenda" step="0.01" min="0" value="${v('valor_venda')}" oninput="calcTotalSublimacao()">
+      </div>
+    </div>
+
+    <div class="col-12">
+      <div class="row g-2 mt-1 p-3 rounded" style="background:#f8f9fa;border:1px solid #dee2e6">
+        <div class="col-12 mb-1"><strong><i class="fas fa-calculator me-1 text-primary"></i>RESUMO FINANCEIRO</strong></div>
+        <div class="col-md-6">
+          <div class="p-2 rounded text-center" style="background:#fff3cd;border:1px solid #ffc107">
+            <div class="small text-muted fw-semibold">TOTAL INVESTIDO</div>
+            <div class="fs-5 fw-bold text-warning" id="subResumoInvestido">R$ 0,00</div>
+            <div class="small text-muted">Tecido + Custos + Brim</div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="p-2 rounded text-center" style="background:#d1fae5;border:1px solid #10b981">
+            <div class="small text-muted fw-semibold">LUCRO ESTIMADO</div>
+            <div class="fs-5 fw-bold" id="subResumoLucro">R$ 0,00</div>
+            <div class="small text-muted">Valor de Venda − Total Investido</div>
+          </div>
+        </div>
       </div>
     </div>
   </div>`,
@@ -1323,10 +1356,20 @@ function calcTotalSublimacao() {
   const totalMetro = qtd * vMetro;
   const subEl = document.getElementById('subTotalMetro');
   if (subEl) subEl.textContent = totalMetro.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
-  const outros = ['uber','almoco','gasolina','estacionamento','brim'].reduce((s,id)=>s+(parseFloat(document.getElementById(id)?.value)||0),0);
+  const outros = ['uber','almoco','gasolina','estacionamento','brim','mao_obra_anderson'].reduce((s,id)=>s+(parseFloat(document.getElementById(id)?.value)||0),0);
   const total = totalMetro + outros;
   const el = document.getElementById('sublimacaoTotalDisplay');
   if (el) el.textContent = total.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+
+  const valorVenda = parseFloat(document.getElementById('sValorVenda')?.value)||0;
+  const lucro = valorVenda - total;
+  const elI = document.getElementById('subResumoInvestido');
+  const elL = document.getElementById('subResumoLucro');
+  if (elI) elI.textContent = fmtMoney(total);
+  if (elL) {
+    elL.textContent = fmtMoney(lucro);
+    elL.style.color = lucro >= 0 ? '#059669' : '#dc2626';
+  }
 }
 
 async function salvarSublimacao(id) {
@@ -1343,6 +1386,8 @@ async function salvarSublimacao(id) {
     gasolina:       parseFloat(document.getElementById('gasolina').value)||0,
     estacionamento: parseFloat(document.getElementById('estacionamento').value)||0,
     brim:           parseFloat(document.getElementById('brim').value)||0,
+    mao_obra_anderson: parseFloat(document.getElementById('mao_obra_anderson').value)||0,
+    valor_venda:    parseFloat(document.getElementById('sValorVenda').value)||0,
     ativo: 1
   };
   try {
@@ -1354,7 +1399,7 @@ async function salvarSublimacao(id) {
 
       // Calcula total gasto
       const totalMetro = data.qtd_metro * data.valor_metro;
-      const totalGasto = totalMetro + data.uber + data.almoco + data.gasolina + data.estacionamento + data.brim;
+      const totalGasto = totalMetro + data.uber + data.almoco + data.gasolina + data.estacionamento + data.brim + data.mao_obra_anderson;
 
       // Envia para Contas a Pagar se houver custo
       if (totalGasto > 0) {
@@ -1368,6 +1413,7 @@ async function salvarSublimacao(id) {
           { label: 'Gasolina',     val: data.gasolina },
           { label: 'Estacionamento', val: data.estacionamento },
           { label: 'Brim',         val: data.brim },
+          { label: 'Mão de obra Anderson', val: data.mao_obra_anderson },
         ].filter(i => i.val > 0);
 
         for (const item of itens) {
@@ -2214,27 +2260,72 @@ async function renderFinanceiro(sub='pagar') {
 function formConta(tipo) {
   openModal(`<i class="fas fa-plus me-2"></i>Nova Conta a ${tipo==='pagar'?'Pagar':'Receber'}`,
     `<div class="row g-3">
-      <div class="col-12"><label class="form-label">Descrição *</label><input class="form-control" id="ctDesc"></div>
-      <div class="col-12"><label class="form-label">${tipo==='pagar'?'Fornecedor':'Cliente'}</label><input class="form-control" id="ctEnt"></div>
-      <div class="col-md-6"><label class="form-label">Valor *</label><div class="input-group"><span class="input-group-text">R$</span><input type="number" id="ctValor" class="form-control" step="0.01" min="0"></div></div>
-      <div class="col-md-6"><label class="form-label">Vencimento *</label><input type="date" id="ctVenc" class="form-control" value="${localDateStr()}"></div>
+      <div class="col-12"><label class="form-label fw-semibold">DESCRIÇÃO *</label><input class="form-control" id="ctDesc"></div>
+      <div class="col-12"><label class="form-label fw-semibold">${tipo==='pagar'?'FORNECEDOR':'CLIENTE'}</label><input class="form-control" id="ctEnt"></div>
+      <div class="col-md-6"><label class="form-label fw-semibold">VALOR TOTAL *</label><div class="input-group"><span class="input-group-text">R$</span><input type="number" id="ctValor" class="form-control" step="0.01" min="0" oninput="atualizarPreviewParcelas()"></div></div>
+      <div class="col-md-6"><label class="form-label fw-semibold">1º VENCIMENTO *</label><input type="date" id="ctVenc" class="form-control" value="${localDateStr()}"></div>
+      <div class="col-12">
+        <label class="form-label fw-semibold">PARCELAMENTO</label>
+        <select class="form-select" id="ctParcelas" onchange="atualizarPreviewParcelas()">
+          <option value="1">À Vista (1x)</option>
+          <option value="2">2x</option>
+          <option value="3">3x</option>
+          <option value="4">4x</option>
+          <option value="5">5x</option>
+        </select>
+      </div>
+      <div class="col-12" id="ctPreviewParcelas"></div>
     </div>`,
     `<button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
      <button class="btn btn-primary" onclick="salvarConta('${tipo}')"><i class="fas fa-save me-1"></i>Salvar</button>`
   );
 }
 
+function atualizarPreviewParcelas() {
+  const n = parseInt(document.getElementById('ctParcelas')?.value)||1;
+  const total = parseFloat(document.getElementById('ctValor')?.value)||0;
+  const el = document.getElementById('ctPreviewParcelas');
+  if (!el) return;
+  if (n <= 1 || total === 0) { el.innerHTML=''; return; }
+  const parcela = total / n;
+  el.innerHTML = `<div class="p-2 rounded" style="background:#f0f4ff;border:1px solid #c7d2fe;font-size:0.85rem">
+    <strong>${n}x de ${parcela.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</strong>
+    — vencimentos mensais a partir do 1º vencimento acima
+  </div>`;
+}
+
 async function salvarConta(tipo) {
   const desc = document.getElementById('ctDesc').value.trim();
   const valor = parseFloat(document.getElementById('ctValor').value)||0;
   const venc = document.getElementById('ctVenc').value;
+  const n = parseInt(document.getElementById('ctParcelas').value)||1;
   if (!desc||!valor) { toast('Preencha os campos obrigatórios','danger'); return; }
   const sheet = tipo==='pagar'?'contas_pagar':'contas_receber';
   const ent = document.getElementById('ctEnt').value;
-  const data = { descricao:desc, valor, vencimento:venc, status:'pendente',
-    ...(tipo==='pagar'?{fornecedor:ent}:{cliente:ent}) };
   try {
-    await insert(sheet,data); toast('Conta salva!'); closeModal(); renderFinanceiro(tipo);
+    if (n <= 1) {
+      const data = { descricao:desc, valor, vencimento:venc, status:'pendente',
+        ...(tipo==='pagar'?{fornecedor:ent}:{cliente:ent}) };
+      await insert(sheet, data);
+    } else {
+      const parcela = parseFloat((valor / n).toFixed(2));
+      const [ano, mes, dia] = venc.split('-').map(Number);
+      for (let i = 0; i < n; i++) {
+        const d = new Date(ano, mes - 1 + i, dia);
+        const vencParcela = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        const data = {
+          descricao: `${desc} (${i+1}/${n})`,
+          valor: parcela,
+          vencimento: vencParcela,
+          status: 'pendente',
+          ...(tipo==='pagar'?{fornecedor:ent}:{cliente:ent})
+        };
+        await insert(sheet, data);
+      }
+    }
+    toast(n > 1 ? `${n} parcelas criadas!` : 'Conta salva!');
+    closeModal();
+    renderFinanceiro(tipo);
   } catch(e) { toast(e.message,'danger'); }
 }
 
