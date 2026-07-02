@@ -2150,18 +2150,32 @@ async function renderFinanceiro(sub='pagar') {
     </ul>`;
 
     if (sub==='fluxo') {
-      const vendas = await getAll('vendas');
+      const receber = await getAll('contas_receber');
       const pagos = await getAll('contas_pagar');
-      const totalEnt = vendas.filter(v=>v.status==='fechada').reduce((s,v)=>s+parseFloat(v.total||0),0);
+      const totalEnt = receber.filter(r=>r.status==='recebido').reduce((s,r)=>s+parseFloat(r.valor||0),0);
+      const totalPend = receber.filter(r=>r.status!=='recebido').reduce((s,r)=>s+parseFloat(r.valor||0),0);
       const totalSai = pagos.filter(p=>p.status==='pago').reduce((s,p)=>s+parseFloat(p.valor||0),0);
+      const totalPagar = pagos.filter(p=>p.status!=='pago').reduce((s,p)=>s+parseFloat(p.valor||0),0);
+      const saldo = totalEnt - totalSai;
       document.getElementById('pageContent').innerHTML = tabs + `
       <div class="row g-3 mb-4">
-        <div class="col-md-4"><div class="card text-center p-3"><div class="text-success mb-1"><i class="fas fa-arrow-down fa-2x"></i></div>
-          <div class="fs-5 fw-bold text-success">${fmtMoney(totalEnt)}</div><small class="text-muted">Total Entradas (Vendas)</small></div></div>
-        <div class="col-md-4"><div class="card text-center p-3"><div class="text-danger mb-1"><i class="fas fa-arrow-up fa-2x"></i></div>
-          <div class="fs-5 fw-bold text-danger">${fmtMoney(totalSai)}</div><small class="text-muted">Total Saídas (Pagamentos)</small></div></div>
-        <div class="col-md-4"><div class="card text-center p-3"><div class="${totalEnt-totalSai>=0?'text-primary':'text-danger'} mb-1"><i class="fas fa-balance-scale fa-2x"></i></div>
-          <div class="fs-5 fw-bold ${totalEnt-totalSai>=0?'text-primary':'text-danger'}">${fmtMoney(totalEnt-totalSai)}</div><small class="text-muted">Saldo</small></div></div>
+        <div class="col-md-4"><div class="card text-center p-3">
+          <div class="text-success mb-1"><i class="fas fa-arrow-down fa-2x"></i></div>
+          <div class="fs-5 fw-bold text-success">${fmtMoney(totalEnt)}</div>
+          <small class="text-muted">Recebido</small>
+          ${totalPend>0?`<div class="mt-1 text-warning fw-semibold" style="font-size:0.82rem">+ ${fmtMoney(totalPend)} a receber</div>`:''}
+        </div></div>
+        <div class="col-md-4"><div class="card text-center p-3">
+          <div class="text-danger mb-1"><i class="fas fa-arrow-up fa-2x"></i></div>
+          <div class="fs-5 fw-bold text-danger">${fmtMoney(totalSai)}</div>
+          <small class="text-muted">Pago</small>
+          ${totalPagar>0?`<div class="mt-1 text-warning fw-semibold" style="font-size:0.82rem">+ ${fmtMoney(totalPagar)} a pagar</div>`:''}
+        </div></div>
+        <div class="col-md-4"><div class="card text-center p-3">
+          <div class="${saldo>=0?'text-primary':'text-danger'} mb-1"><i class="fas fa-balance-scale fa-2x"></i></div>
+          <div class="fs-5 fw-bold ${saldo>=0?'text-primary':'text-danger'}">${fmtMoney(saldo)}</div>
+          <small class="text-muted">Saldo (recebido − pago)</small>
+        </div></div>
       </div>`;
       return;
     }
