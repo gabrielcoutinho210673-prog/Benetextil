@@ -898,6 +898,14 @@ function formCliente(c={}) {
           <div class="col-md-2"><label class="form-label">Valor Gasto no Tecido (R$)</label><div class="input-group"><span class="input-group-text">R$</span><input type="number" class="form-control" id="cTecidoValor${i}" step="0.01" min="0" value="${v(i===1?'tecido_valor':`peca${i}_tecido_valor`)}" oninput="calcResumo()"></div></div>
           <div class="col-md-3"><label class="form-label">Estampa / Bordado</label><input class="form-control" id="cEstampa${i}" value="${v(i===1?'estampa':`peca${i}_estampa`)}"></div>
           <div class="col-md-4"><label class="form-label">Observações</label><input class="form-control" id="cObsServico${i}" value="${v(i===1?'obs_servico':`peca${i}_obs`)}"></div>
+          <div class="col-12">
+            <div id="custoPeca${i}" style="background:#e8f4fd;border:1px solid #4361ee;border-radius:8px;padding:8px 14px;font-size:0.92rem;color:#1a237e;display:flex;gap:24px;align-items:center;flex-wrap:wrap">
+              <span><strong>Tecido:</strong> <span id="custoPeca${i}_tecido">R$ 0,00</span></span>
+              <span><strong>Rateio Aviamentos:</strong> <span id="custoPeca${i}_avia">R$ 0,00</span></span>
+              <span><strong>Rateio Costura:</strong> <span id="custoPeca${i}_costura">R$ 0,00</span></span>
+              <span style="font-size:1rem;font-weight:700;color:#4361ee"><i class="fas fa-calculator me-1"></i>Total desta Peça: <span id="custoPeca${i}_total">R$ 0,00</span></span>
+            </div>
+          </div>
         </div>
       </div>`).join('')}
     </div>
@@ -1127,7 +1135,8 @@ function calcResumo() {
     costura += q * v;
   }
   const valorTotal = parseFloat(document.getElementById('cValorTotal')?.value)||0;
-  const custoTotal = tecido + botao + ziper + elastico + ilhos + entretela + cordao + cadarco + composicao + etiqueta + velcro + botaoPressao + faixaRefletiva + tnt + tinta + tela + costura;
+  const aviaTotal  = botao + ziper + elastico + ilhos + entretela + cordao + cadarco + composicao + etiqueta + velcro + botaoPressao + faixaRefletiva + tnt + tinta + tela;
+  const custoTotal = tecido + aviaTotal + costura;
   const lucro = valorTotal - custoTotal;
   const elC = document.getElementById('resumoCustoTotal');
   const elL = document.getElementById('resumoLucro');
@@ -1135,6 +1144,20 @@ function calcResumo() {
   if (elL) {
     elL.textContent = fmtMoney(lucro);
     elL.style.color = lucro >= 0 ? '#059669' : '#dc2626';
+  }
+
+  // Custo estimado por peça (rateio de aviamentos e costura entre as peças ativas)
+  const nPecas = parseInt(document.getElementById('cQtdTipos')?.value)||1;
+  const aviaRateio   = aviaTotal / nPecas;
+  const costuraRateio = costura  / nPecas;
+  for (let i = 1; i <= 5; i++) {
+    const tec = parseFloat(document.getElementById(`cTecidoValor${i}`)?.value)||0;
+    const total = i <= nPecas ? (tec + aviaRateio + costuraRateio) : 0;
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = fmtMoney(val); };
+    set(`custoPeca${i}_tecido`,  tec);
+    set(`custoPeca${i}_avia`,    i <= nPecas ? aviaRateio   : 0);
+    set(`custoPeca${i}_costura`, i <= nPecas ? costuraRateio : 0);
+    set(`custoPeca${i}_total`,   total);
   }
 }
 
