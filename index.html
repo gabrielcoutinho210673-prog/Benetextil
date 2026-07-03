@@ -777,9 +777,10 @@ async function preencherClienteCad(id) {
   const c = todos.find(x => x.id === id);
   if (!c) return;
   const set = (elId, val) => { const el=document.getElementById(elId); if(el) el.value=val||''; };
-  set('cNome',      c.nome);
-  set('cTel',       c.telefone);
-  set('cEnd',       [c.endereco, c.cidade, c.estado].filter(Boolean).join(', '));
+  set('cNome',     c.nome);
+  set('cCpfCnpj',  c.cnpj);
+  set('cTel',      c.telefone);
+  set('cEnd',      [c.endereco, c.cidade, c.estado].filter(Boolean).join(', '));
   set('buscaClienteCad', c.nome);
   document.getElementById('listaClientesCad').style.display = 'none';
   toast(`Cliente "${c.nome}" carregado!`);
@@ -868,9 +869,10 @@ function formCliente(c={}) {
       </div>
       <div id="listaClientesCad" class="list-group mt-1 shadow-sm" style="display:none;position:absolute;z-index:9999;max-height:200px;overflow-y:auto;width:calc(100% - 30px)"></div>
     </div>
-    <div class="col-md-6"><label class="form-label">Nome *</label><input class="form-control" id="cNome" value="${v('nome')}"></div>
-    <div class="col-md-3"><label class="form-label">Telefone</label><input class="form-control" id="cTel" value="${v('telefone')}"></div>
-    <div class="col-md-3"><label class="form-label">Data do Pedido</label><input type="date" class="form-control" id="cDataPedido" value="${v('data_pedido')||hoje}"></div>
+    <div class="col-md-5"><label class="form-label">Nome *</label><input class="form-control" id="cNome" value="${v('nome')}"></div>
+    <div class="col-md-3"><label class="form-label">CPF / CNPJ</label><input class="form-control" id="cCpfCnpj" placeholder="000.000.000-00" value="${v('cpf_cnpj')}"></div>
+    <div class="col-md-2"><label class="form-label">Telefone</label><input class="form-control" id="cTel" value="${v('telefone')}"></div>
+    <div class="col-md-2"><label class="form-label">Data do Pedido</label><input type="date" class="form-control" id="cDataPedido" value="${v('data_pedido')||hoje}"></div>
     <div class="col-12"><label class="form-label">Endereço</label><input class="form-control" id="cEnd" value="${v('endereco')}"></div>
 
     ${secTitle('tshirt','DESCRIÇÃO DO SERVIÇO')}
@@ -1158,6 +1160,7 @@ async function salvarCliente(id) {
 
   const data = {
     nome,
+    cpf_cnpj:       document.getElementById('cCpfCnpj').value.trim(),
     telefone:       document.getElementById('cTel').value,
     endereco:       document.getElementById('cEnd').value,
     data_pedido:    document.getElementById('cDataPedido').value,
