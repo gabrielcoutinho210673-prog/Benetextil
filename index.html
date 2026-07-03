@@ -904,6 +904,7 @@ function formCliente(c={}) {
               <span><strong>Rateio Aviamentos:</strong> <span id="custoPeca${i}_avia">R$ 0,00</span></span>
               <span><strong>Rateio Costura:</strong> <span id="custoPeca${i}_costura">R$ 0,00</span></span>
               <span style="font-size:1rem;font-weight:700;color:#4361ee"><i class="fas fa-calculator me-1"></i>Total desta Peça: <span id="custoPeca${i}_total">R$ 0,00</span></span>
+              <span style="font-size:1rem;font-weight:700;color:#7c3aed"><i class="fas fa-tag me-1"></i>Custo por Unidade: <span id="custoPeca${i}_unit">R$ 0,00</span></span>
             </div>
           </div>
         </div>
@@ -1153,11 +1154,14 @@ function calcResumo() {
   for (let i = 1; i <= 5; i++) {
     const tec = parseFloat(document.getElementById(`cTecidoValor${i}`)?.value)||0;
     const total = i <= nPecas ? (tec + aviaRateio + costuraRateio) : 0;
+    const qtd = parseFloat(document.getElementById(`cQtd${i}`)?.value)||0;
+    const unit = (total > 0 && qtd > 0) ? total / qtd : 0;
     const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = fmtMoney(val); };
     set(`custoPeca${i}_tecido`,  tec);
     set(`custoPeca${i}_avia`,    i <= nPecas ? aviaRateio   : 0);
     set(`custoPeca${i}_costura`, i <= nPecas ? costuraRateio : 0);
     set(`custoPeca${i}_total`,   total);
+    set(`custoPeca${i}_unit`,    unit);
   }
 }
 
