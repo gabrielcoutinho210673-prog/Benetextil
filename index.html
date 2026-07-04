@@ -1710,8 +1710,10 @@ async function renderCompras() {
 function formCompra() {
   openModal(`<i class="fas fa-cart-shopping me-2"></i>Nova Compra`,
   `<div class="row g-3">
-    <div class="col-12"><label class="form-label fw-semibold">DESCRIÇÃO *</label>
-      <input class="form-control" id="cpDesc" placeholder="Ex: Tecido, Aviamentos, Equipamento..."></div>
+    <div class="col-12"><label class="form-label fw-semibold">PRODUTO *</label>
+      <input class="form-control" id="cpProduto" placeholder="Ex: Tecido, Aviamentos, Botão..."></div>
+    <div class="col-12"><label class="form-label fw-semibold">DESCRIÇÃO</label>
+      <input class="form-control" id="cpDesc" placeholder="Detalhes adicionais da compra"></div>
     <div class="col-12"><label class="form-label fw-semibold">FORNECEDOR</label>
       <input class="form-control" id="cpFornecedor" placeholder="Nome do fornecedor"></div>
     <div class="col-md-6"><label class="form-label fw-semibold">VALOR TOTAL *</label>
@@ -1762,9 +1764,10 @@ function atualizarPreviewCompra() {
 }
 
 async function salvarCompra() {
+  const produto = document.getElementById('cpProduto').value.trim();
   const desc = document.getElementById('cpDesc').value.trim();
   const valor = parseFloat(document.getElementById('cpValor').value)||0;
-  if (!desc || !valor) { toast('Preencha descrição e valor','danger'); return; }
+  if (!produto || !valor) { toast('Preencha produto e valor','danger'); return; }
   const n = parseInt(document.getElementById('cpParcelas').value)||1;
   const venc = document.getElementById('cpVenc').value;
   const forma = document.getElementById('cpFormaPag').value;
@@ -1773,7 +1776,7 @@ async function salvarCompra() {
   const data  = document.getElementById('cpData').value;
   try {
     await insert('compras', {
-      descricao: desc, fornecedor: forn, valor_total: valor,
+      produto, descricao: desc, fornecedor: forn, valor_total: valor,
       parcelas: n, forma_pagamento: forma, data_compra: data, observacoes: obs, ativo: 1
     });
     // Lança em Contas a Pagar
@@ -1783,7 +1786,7 @@ async function salvarCompra() {
       const d = new Date(ano, mes - 1 + i, dia);
       const vencP = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
       await insert('contas_pagar', {
-        descricao: n > 1 ? `${desc} (${i+1}/${n})` : desc,
+        descricao: n > 1 ? `${produto} (${i+1}/${n})` : produto,
         fornecedor: forn || 'Empresa',
         valor: parcela, vencimento: vencP,
         status: 'pendente', ativo: 1
