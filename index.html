@@ -1154,7 +1154,9 @@ function calcResumo() {
   for (let i = 1; i <= 5; i++) {
     const ativo = i <= nPecas;
     const tec = parseFloat(document.getElementById(`cTecidoValor${i}`)?.value)||0;
-    const estampaValor = parseFloat(document.getElementById(`cEstampaValor${i}`)?.value)||0;
+    const estampaUnit = parseFloat(document.getElementById(`cEstampaValor${i}`)?.value)||0;
+    const qtdPeca = parseFloat(document.getElementById(`cQtd${i}`)?.value)||0;
+    const estampaValor = estampaUnit * qtdPeca;
     let aviaSum = 0;
     AVIAMENTOS_LIST.forEach(a => {
       const qtd = parseFloat(document.getElementById(`p${i}_avia_${a.key}_qtd`)?.value)||0;
