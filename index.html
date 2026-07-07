@@ -414,7 +414,14 @@ async function conectar() {
     return;
   }
 
-  window.APP_ROLE = authData?.user?.user_metadata?.role || 'admin';
+  // Lê role da tabela perfis
+  try {
+    const userId = authData.user.id;
+    const { data: perfil } = await supabaseClient.from('perfis').select('role').eq('id', userId).single();
+    window.APP_ROLE = perfil?.role || 'admin';
+  } catch(e) {
+    window.APP_ROLE = 'admin';
+  }
   iniciarApp();
 }
 
