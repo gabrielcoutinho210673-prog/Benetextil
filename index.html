@@ -1196,8 +1196,11 @@ function calcResumo() {
   for (let i = 1; i <= 5; i++) {
     const ativo = i <= nPecas;
     const tec = parseFloat(document.getElementById(`cTecidoValor${i}`)?.value)||0;
-    const estampaUnit = parseFloat(document.getElementById(`cEstampaValor${i}`)?.value)||0;
     const qtdPeca = parseFloat(document.getElementById(`cQtd${i}`)?.value)||0;
+    // usa campo numérico; se vazio, tenta parsear o campo texto (ex: "2,50")
+    const estampaNumerico = parseFloat(document.getElementById(`cEstampaValor${i}`)?.value)||0;
+    const estampaTexto    = parseFloat((document.getElementById(`cEstampa${i}`)?.value||'').replace(',','.'))||0;
+    const estampaUnit  = estampaNumerico || estampaTexto;
     const estampaValor = estampaUnit * qtdPeca;
     let aviaSum = 0;
     AVIAMENTOS_LIST.forEach(a => {
