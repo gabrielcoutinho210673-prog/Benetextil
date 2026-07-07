@@ -195,6 +195,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--body);color:#2
       </li>
       <li id="menuRelatorios"><button class="sb-link" onclick="nav('relatorios')"><i class="fas fa-chart-bar sb-icon"></i><span>Relatórios</span></button></li>
       <li class="sb-divider"></li>
+      <li id="menuContasCasa"><button class="sb-link" onclick="nav('contascasa')" style="color:#f59e0b"><i class="fas fa-home sb-icon"></i><span>Contas da Casa</span></button></li>
+      <li class="sb-divider"></li>
       <li><button class="sb-link" style="color:#fc8181" onclick="sair()"><i class="fas fa-sign-out-alt sb-icon"></i><span>Sair</span></button></li>
     </ul>
     <div class="sb-footer">v1.0 © 2025 Gabriel Soluções</div>
@@ -259,7 +261,7 @@ const getSupaKey = () => window.APP_CONFIG?.supabase_key || 'eyJhbGciOiJIUzI1NiI
 const Cache = {
   clientes: null, produtos: null, categorias: null, fornecedores: null,
   vendas: null, itens_venda: null, caixa: null, mov_caixa: null,
-  kardex: null, contas_pagar: null, contas_receber: null, sublimacao: null, compras: null,
+  kardex: null, contas_pagar: null, contas_receber: null, sublimacao: null, compras: null, contas_casa: null,
   clear(sheet) { if(sheet) this[sheet]=null; else Object.keys(this).forEach(k=>{ if(typeof this[k]!=='function') this[k]=null; }); }
 };
 
@@ -455,7 +457,7 @@ function showInstructions() {
   new bootstrap.Modal(document.getElementById('modalInstrucoes')).show();
 }
 
-const PAGINAS_ADMIN = new Set(['dashboard','financeiro','relatorios','pdv','caixa','kardex','produtos','clientescad']);
+const PAGINAS_ADMIN = new Set(['dashboard','financeiro','relatorios','pdv','caixa','kardex','produtos','clientescad','contascasa']);
 
 function aplicarPermissoes() {
   const isOp = window.APP_ROLE === 'operador';
@@ -465,7 +467,7 @@ function aplicarPermissoes() {
   ['menuDashboard','menuMovimento','menuFinanceiro','menuRelatorios','menuClientesCad','menuEstoque'].forEach(show);
   if (isOp) {
     hide('menuDashboard'); hide('menuMovimento'); hide('menuFinanceiro');
-    hide('menuRelatorios'); hide('menuClientesCad'); hide('menuEstoque');
+    hide('menuRelatorios'); hide('menuClientesCad'); hide('menuEstoque'); hide('menuContasCasa');
   }
   const roleEl = document.getElementById('sbUserRole');
   const nameEl = document.getElementById('sbUserName');
@@ -511,7 +513,7 @@ function nav(page, sub='') {
   document.getElementById('sidebar').classList.remove('open');
 
   const renders = {
-    dashboard: renderDashboard, clientescad: renderClientesCad, clientes: renderClientes, sublimacao: renderSublimacao, produtos: renderProdutos, compras: renderCompras,
+    dashboard: renderDashboard, clientescad: renderClientesCad, clientes: renderClientes, sublimacao: renderSublimacao, produtos: renderProdutos, compras: renderCompras, contascasa: renderContasCasa,
     categorias: renderCategorias, fornecedores: renderFornecedores, pdv: renderPDV,
     caixa: renderCaixa, kardex: renderKardex, financeiro: () => renderFinanceiro(sub||'pagar'),
     relatorios: renderRelatorios
@@ -1851,6 +1853,170 @@ async function salvarCompra() {
 async function delCompra(id, desc) {
   if (!confirm(`Excluir compra "${desc}"?`)) return;
   await remove('compras', id); toast('Removida.'); Cache.clear('compras'); renderCompras();
+}
+
+// ═══════════════════════════════════════════════════════
+// CONTAS DA CASA
+// ═══════════════════════════════════════════════════════
+const CATS_CASA = ['Alimentação','Água / Luz / Gás','Aluguel / Condomínio','Transporte','Saúde','Educação','Lazer','Vestuário','Internet / Telefone','Outros'];
+
+async function renderContasCasa() {
+  const el = document.getElementById('pageContent');
+  el.innerHTML = `<div class="text-center py-5"><div class="spinner-border text-warning"></div></div>`;
+  const hoje = localDateStr();
+  const mesAtual = hoje.slice(0,7);
+  const dados = (await getAll('contas_casa')).filter(r=>r.ativo!==0);
+  const entradas = dados.filter(r=>r.tipo==='entrada');
+  const saidas   = dados.filter(r=>r.tipo==='saida');
+  const totEnt = entradas.reduce((s,r)=>s+parseFloat(r.valor||0),0);
+  const totSai = saidas.reduce((s,r)=>s+parseFloat(r.valor||0),0);
+  const saldo  = totEnt - totSai;
+  const pendentes = dados.filter(r=>r.status==='pendente');
+  const totPend = pendentes.reduce((s,r)=>s+parseFloat(r.valor||0),0);
+
+  el.innerHTML = `
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h4 class="mb-0" style="color:#f59e0b"><i class="fas fa-home me-2"></i>Contas da Casa</h4>
+    <button class="btn btn-warning text-white" onclick="formContaCasa()"><i class="fas fa-plus me-1"></i>Nova Conta</button>
+  </div>
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="card text-center p-3" style="background:#d1fae5;border:1px solid #6ee7b7">
+        <div style="font-size:.8rem;color:#065f46;font-weight:600">ENTRADAS</div>
+        <div style="font-size:1.4rem;font-weight:700;color:#059669">${fmtMoney(totEnt)}</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card text-center p-3" style="background:#fee2e2;border:1px solid #fca5a5">
+        <div style="font-size:.8rem;color:#7f1d1d;font-weight:600">SAÍDAS</div>
+        <div style="font-size:1.4rem;font-weight:700;color:#dc2626">${fmtMoney(totSai)}</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card text-center p-3" style="background:${saldo>=0?'#dbeafe':'#fee2e2'};border:1px solid ${saldo>=0?'#93c5fd':'#fca5a5'}">
+        <div style="font-size:.8rem;font-weight:600;color:${saldo>=0?'#1e40af':'#7f1d1d'}">SALDO</div>
+        <div style="font-size:1.4rem;font-weight:700;color:${saldo>=0?'#2563eb':'#dc2626'}">${fmtMoney(saldo)}</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card text-center p-3" style="background:#fef3c7;border:1px solid #fcd34d">
+        <div style="font-size:.8rem;color:#78350f;font-weight:600">A PAGAR</div>
+        <div style="font-size:1.4rem;font-weight:700;color:#d97706">${fmtMoney(totPend)}</div>
+      </div>
+    </div>
+  </div>
+  <div class="card shadow-sm">
+    <div class="card-body p-0">
+      <div class="d-flex gap-2 p-3 flex-wrap align-items-center" style="background:#fffbeb;border-bottom:1px solid #fde68a">
+        <select class="form-select form-select-sm" style="width:160px" id="filtCasaTipo" onchange="renderContasCasa()">
+          <option value="">Todos</option><option value="entrada">Entradas</option><option value="saida">Saídas</option>
+        </select>
+        <select class="form-select form-select-sm" style="width:180px" id="filtCasaStatus" onchange="renderContasCasa()">
+          <option value="">Todos os status</option><option value="pago">Pago</option><option value="pendente">Pendente</option>
+        </select>
+        <input type="month" class="form-control form-control-sm" style="width:150px" id="filtCasaMes" value="${mesAtual}" onchange="renderContasCasa()">
+        <button class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('filtCasaMes').value='';document.getElementById('filtCasaTipo').value='';document.getElementById('filtCasaStatus').value='';renderContasCasa()">Limpar</button>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead class="table-light"><tr>
+            <th>Data</th><th>Descrição</th><th>Categoria</th><th>Tipo</th><th>Valor</th><th>Status</th><th></th>
+          </tr></thead>
+          <tbody>
+          ${(()=>{
+            const filtTipo   = document.getElementById('filtCasaTipo')?.value || '';
+            const filtStatus = document.getElementById('filtCasaStatus')?.value || '';
+            const filtMes    = document.getElementById('filtCasaMes')?.value || '';
+            let filtrados = dados;
+            if (filtTipo)   filtrados = filtrados.filter(r=>r.tipo===filtTipo);
+            if (filtStatus) filtrados = filtrados.filter(r=>r.status===filtStatus);
+            if (filtMes)    filtrados = filtrados.filter(r=>(r.data||'').startsWith(filtMes));
+            filtrados.sort((a,b)=>(b.data||'').localeCompare(a.data||''));
+            if (!filtrados.length) return `<tr><td colspan="7" class="text-center text-muted py-4">Nenhum lançamento encontrado</td></tr>`;
+            return filtrados.map(r=>{
+              const isEnt = r.tipo==='entrada';
+              const isPago = r.status==='pago';
+              return `<tr>
+                <td>${r.data?r.data.split('-').reverse().join('/'):'—'}</td>
+                <td><strong>${escHtml(r.descricao||'')}</strong>${r.observacoes?`<br><small class="text-muted">${escHtml(r.observacoes)}</small>`:''}</td>
+                <td><span class="badge bg-secondary">${escHtml(r.categoria||'')}</span></td>
+                <td><span class="badge" style="background:${isEnt?'#d1fae5;color:#065f46':'#fee2e2;color:#7f1d1d'}">${isEnt?'Entrada':'Saída'}</span></td>
+                <td style="font-weight:600;color:${isEnt?'#059669':'#dc2626'}">${isEnt?'+':'−'}${fmtMoney(parseFloat(r.valor||0))}</td>
+                <td><span class="badge" style="background:${isPago?'#d1fae5;color:#065f46':'#fef3c7;color:#78350f'}">${isPago?'Pago':'Pendente'}</span>
+                  ${!isPago?`<button class="btn btn-xs ms-1" style="font-size:.7rem;padding:1px 6px;background:#d1fae5;color:#065f46;border:none;border-radius:4px" onclick="marcarCasaPago(${r.id})">✓</button>`:''}</td>
+                <td><button class="btn btn-icon btn-outline-danger btn-sm" onclick="delContaCasa(${r.id},'${escHtml(r.descricao||'')}')"><i class="fas fa-trash"></i></button></td>
+              </tr>`;
+            }).join('');
+          })()}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>`;
+}
+
+function formContaCasa() {
+  const hoje = localDateStr();
+  openModal('<i class="fas fa-home me-2"></i>Nova Conta da Casa',
+  `<div class="row g-3">
+    <div class="col-md-6">
+      <label class="form-label fw-semibold">TIPO *</label>
+      <div class="d-flex gap-3">
+        <div class="form-check"><input class="form-check-input" type="radio" name="ccTipo" id="ccTipoSaida" value="saida" checked><label class="form-check-label text-danger fw-semibold" for="ccTipoSaida">💸 Saída (Despesa)</label></div>
+        <div class="form-check"><input class="form-check-input" type="radio" name="ccTipo" id="ccTipoEntrada" value="entrada"><label class="form-check-label text-success fw-semibold" for="ccTipoEntrada">💰 Entrada</label></div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <label class="form-label fw-semibold">CATEGORIA</label>
+      <select class="form-select" id="ccCategoria">
+        ${CATS_CASA.map(c=>`<option value="${c}">${c}</option>`).join('')}
+      </select>
+    </div>
+    <div class="col-12"><label class="form-label fw-semibold">DESCRIÇÃO *</label>
+      <input class="form-control" id="ccDesc" placeholder="Ex: Conta de luz, Mercado..."></div>
+    <div class="col-md-6"><label class="form-label fw-semibold">VALOR *</label>
+      <div class="input-group"><span class="input-group-text">R$</span>
+        <input type="number" class="form-control" id="ccValor" step="0.01" min="0"></div></div>
+    <div class="col-md-6"><label class="form-label fw-semibold">DATA</label>
+      <input type="date" class="form-control" id="ccData" value="${hoje}"></div>
+    <div class="col-md-6"><label class="form-label fw-semibold">STATUS</label>
+      <select class="form-select" id="ccStatus">
+        <option value="pendente">Pendente</option><option value="pago">Pago</option>
+      </select>
+    </div>
+    <div class="col-md-6"><label class="form-label fw-semibold">OBSERVAÇÕES</label>
+      <input class="form-control" id="ccObs" placeholder="Opcional"></div>
+  </div>`,
+  `<button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+   <button class="btn btn-warning text-white" onclick="salvarContaCasa()"><i class="fas fa-save me-1"></i>Salvar</button>`);
+}
+
+async function salvarContaCasa() {
+  const desc  = document.getElementById('ccDesc').value.trim();
+  const valor = parseFloat(document.getElementById('ccValor').value)||0;
+  if (!desc || !valor) { toast('Preencha descrição e valor','danger'); return; }
+  const tipo  = document.querySelector('input[name="ccTipo"]:checked')?.value || 'saida';
+  await insert('contas_casa', {
+    descricao:  desc,
+    categoria:  document.getElementById('ccCategoria').value,
+    tipo,
+    valor,
+    data:       document.getElementById('ccData').value,
+    status:     document.getElementById('ccStatus').value,
+    observacoes:document.getElementById('ccObs').value.trim(),
+    ativo: 1
+  });
+  toast('Lançamento salvo!'); closeModal(); Cache.clear('contas_casa'); renderContasCasa();
+}
+
+async function marcarCasaPago(id) {
+  await update('contas_casa', id, {status:'pago'});
+  Cache.clear('contas_casa'); renderContasCasa();
+}
+
+async function delContaCasa(id, desc) {
+  if (!confirm(`Excluir "${desc}"?`)) return;
+  await remove('contas_casa', id); toast('Removido.'); Cache.clear('contas_casa'); renderContasCasa();
 }
 
 // ═══════════════════════════════════════════════════════
