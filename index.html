@@ -1182,7 +1182,10 @@ function renderLinhasPeca() {
 }
 
 function calcResumo() {
-  const nPecas = parseInt(document.getElementById('cQtdTipos')?.value)||1;
+  const nPecas    = parseInt(document.getElementById('cQtdTipos')?.value)||1;
+  const valorTotal = parseFloat(document.getElementById('cValorTotal')?.value)||0;
+  let qtdTotal = 0;
+  for (let i = 1; i <= nPecas; i++) qtdTotal += parseFloat(document.getElementById(`cQtd${i}`)?.value)||0;
 
   const qtdC = parseInt(document.getElementById('costuraQtd')?.value)||0;
   let costura = 0;
@@ -1220,10 +1223,13 @@ function calcResumo() {
     setEl(`custoPeca${i}_estampa`,  ativo ? estampaValor : 0);
     setEl(`custoPeca${i}_avia`,     ativo ? aviaSum      : 0);
     setEl(`custoPeca${i}_costura`, ativo ? costuraRateio : 0);
-    const vendaUnit  = parseFloat(document.getElementById(`cVendaValor${i}`)?.value)||0;
-    const receita    = vendaUnit * qtdPeca;
-    const lucro      = vendaUnit > 0 ? receita - total : null;
-    const lucroUnit  = vendaUnit > 0 ? vendaUnit - unit : null;
+    // Venda: usa campo específico da peça; se vazio, distribui valor_total pela qtd total
+    const vendaUnitCampo = parseFloat(document.getElementById(`cVendaValor${i}`)?.value)||0;
+    const vendaUnit = vendaUnitCampo > 0 ? vendaUnitCampo
+                    : (qtdTotal > 0 ? valorTotal / qtdTotal : 0);
+    const receita    = ativo && vendaUnit > 0 ? vendaUnit * qtdPeca : 0;
+    const lucro      = ativo && vendaUnit > 0 ? receita - total : null;
+    const lucroUnit  = ativo && vendaUnit > 0 ? vendaUnit - unit : null;
     setEl(`custoPeca${i}_total`,    total);
     setEl(`custoPeca${i}_unit`,     unit);
     const setLucro = (id, val) => {
@@ -1238,7 +1244,6 @@ function calcResumo() {
     if (ativo) custoTotal += total;
   }
 
-  const valorTotal = parseFloat(document.getElementById('cValorTotal')?.value)||0;
   const lucro = valorTotal - custoTotal;
   const elC = document.getElementById('resumoCustoTotal');
   const elL = document.getElementById('resumoLucro');
