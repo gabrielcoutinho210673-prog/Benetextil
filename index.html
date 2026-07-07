@@ -414,15 +414,24 @@ async function conectar() {
     return;
   }
 
-  // Lê role da tabela perfis
-  try {
-    const userId = authData.user.id;
-    const { data: perfil } = await supabaseClient.from('perfis').select('role').eq('id', userId).single();
-    window.APP_ROLE = perfil?.role || 'admin';
-  } catch(e) {
-    window.APP_ROLE = 'admin';
-  }
+  await carregarRole(authData.user);
   iniciarApp();
+}
+
+async function carregarRole(user) {
+  if (!user) { window.APP_ROLE = 'admin'; return; }
+  window.APP_EMAIL = user.email || '';
+  try {
+    const { data: perfil, error } = await supabaseClient.from('perfis').select('role').eq('id', user.id).single();
+    if (!error && perfil?.role) {
+      window.APP_ROLE = perfil.role;
+    } else {
+      // fallback: user_metadata
+      window.APP_ROLE = user.user_metadata?.role || 'admin';
+    }
+  } catch(e) {
+    window.APP_ROLE = user.user_metadata?.role || 'admin';
+  }
 }
 
 function usarDemo() {
@@ -451,13 +460,17 @@ const PAGINAS_ADMIN = new Set(['dashboard','financeiro','relatorios','pdv','caix
 function aplicarPermissoes() {
   const isOp = window.APP_ROLE === 'operador';
   const hide = id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; };
+  const show = id => { const el = document.getElementById(id); if (el) el.style.display = ''; };
+  // Garante que todos aparecem antes de esconder os restritos
+  ['menuDashboard','menuMovimento','menuFinanceiro','menuRelatorios','menuClientesCad','menuEstoque'].forEach(show);
   if (isOp) {
     hide('menuDashboard'); hide('menuMovimento'); hide('menuFinanceiro');
     hide('menuRelatorios'); hide('menuClientesCad'); hide('menuEstoque');
-    document.getElementById('sbUserRole').textContent = 'Operador';
-  } else {
-    document.getElementById('sbUserRole').textContent = 'Admin';
   }
+  const roleEl = document.getElementById('sbUserRole');
+  const nameEl = document.getElementById('sbUserName');
+  if (roleEl) roleEl.textContent = isOp ? 'Operador' : 'Admin';
+  if (nameEl && window.APP_EMAIL) nameEl.textContent = window.APP_EMAIL.split('@')[0];
 }
 
 function iniciarApp() {
@@ -2828,7 +2841,10 @@ window.addEventListener('DOMContentLoaded', async () => {
   supabaseClient = window.supabase.createClient(getSupaUrl(), getSupaKey());
   if (!getSupaUrl()) return; // aguarda config.js carregar
   const { data: { session } } = await supabaseClient.auth.getSession();
-  if (session) iniciarApp();
+  if (session) {
+    await carregarRole(session.user);
+    iniciarApp();
+  }
 });
 </script>
 </body>
