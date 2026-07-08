@@ -944,13 +944,7 @@ function formCliente(c={}) {
     <div class="col-12"><label class="form-label">Endereço</label><input class="form-control" id="cEnd" value="${v('endereco')}"></div>
 
     ${secTitle('tshirt','DESCRIÇÃO DO SERVIÇO')}
-    <div class="col-12 d-flex align-items-center gap-3 mb-1">
-      <label class="form-label mb-0 fw-semibold">Quantos tipos de peça?</label>
-      <select class="form-select" style="width:90px" id="cQtdTipos" onchange="renderLinhasPeca()">
-        <option value="1">1</option><option value="2">2</option><option value="3">3</option>
-        <option value="4">4</option><option value="5">5</option>
-      </select>
-    </div>
+    <input type="hidden" id="cQtdTipos" value="1">
     <div class="col-12" id="cLinhasPeca">
       ${[1,2,3,4,5].map(i=>`
       <div class="peca-linha" id="pecaLinha${i}" style="${i>1?'display:none':''}">
