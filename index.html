@@ -407,8 +407,6 @@ async function conectar() {
   const btn = document.querySelector('#setupScreen button.btn-primary');
   if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Entrando...'; }
 
-  supabaseClient = window.supabase.createClient(getSupaUrl(), getSupaKey());
-
   const { data: authData, error } = await supabaseClient.auth.signInWithPassword({ email, password: senha });
   if (error) {
     showSetupError('E-mail ou senha incorretos.');
@@ -454,10 +452,11 @@ function showSetupError(msg) {
 }
 
 function showInstructions() {
-  new bootstrap.Modal(document.getElementById('modalInstrucoes')).show();
+  const el = document.getElementById('modalInstrucoes');
+  if (el) new bootstrap.Modal(el).show();
 }
 
-const PAGINAS_ADMIN = new Set(['dashboard','financeiro','relatorios','pdv','caixa','kardex','produtos','clientescad','contascasa']);
+const PAGINAS_ADMIN = new Set(['dashboard','financeiro','relatorios','pdv','caixa','kardex','produtos','clientescad','contascasa','sublimacao','compras']);
 
 function aplicarPermissoes() {
   const isOp = window.APP_ROLE === 'operador';
@@ -1379,7 +1378,14 @@ async function salvarCliente(id) {
       const custos = [];
       if (data.tecido_valor > 0)       custos.push({ desc: `Tecido — ${desc}`,     val: data.tecido_valor });
       if (data.costura_total > 0)      custos.push({ desc: `Costura — ${desc}`,    val: data.costura_total });
-      const totalAviamentos = (data.aviamento_botao||0)+(data.aviamento_ziper||0)+(data.aviamento_elastico||0)+(data.aviamento_ilhos||0)+(data.aviamento_entretela||0)+(data.aviamento_cordao||0)+(data.aviamento_cadarco||0)+(data.aviamento_composicao||0)+(data.aviamento_etiqueta||0)+(data.aviamento_velcro||0)+(data.aviamento_botao_pressao||0)+(data.aviamento_faixa_refletiva||0)+(data.aviamento_tnt||0)+(data.aviamento_tinta||0)+(data.aviamento_tela||0);
+      let totalAviamentos = 0;
+      for (let pi = 1; pi <= 5; pi++) {
+        const col = `peca${pi}_aviamentos`;
+        try {
+          const avObj = JSON.parse(data[col] || '{}');
+          Object.values(avObj).forEach(v => { totalAviamentos += (v.total || (v.qtd * v.val) || 0); });
+        } catch(e) {}
+      }
       if (totalAviamentos > 0) custos.push({ desc: `Aviamentos — ${desc}`, val: totalAviamentos });
 
       for (const c of custos) {
@@ -1881,7 +1887,7 @@ async function delCompra(id, desc) {
 // ═══════════════════════════════════════════════════════
 // CONTAS DA CASA
 // ═══════════════════════════════════════════════════════
-const CATS_CASA = ['Alimentação','Água / Luz / Gás','Aluguel / Condomínio','Transporte','Saúde','Educação','Lazer','Vestuário','Internet / Telefone','Outros'];
+const CATS_CASA = ['Alimentação','Água / Luz / Gás','IPTU','Transporte','Saúde','Educação','Lazer','Vestuário','Internet / Telefone','Outros'];
 
 async function renderContasCasa() {
   const el = document.getElementById('pageContent');
@@ -2326,7 +2332,7 @@ async function delForn(id, nome) {
 let cart = [], pdvPayMethod = 'dinheiro', pdvClienteId = '', pdvClienteNome = 'Consumidor Final';
 
 async function renderPDV() {
-  const clientes = await getAll('clientes');
+  const clientes = await getAll('clientes_cad');
 
   document.getElementById('pageContent').innerHTML = `
   <div class="pdv-wrap">
@@ -2345,6 +2351,7 @@ async function renderPDV() {
           <div class="col-md-4">
             <label class="form-label">Cliente</label>
             <select class="form-select" id="pdvCliente" onchange="pdvSetCliente(this)">
+              <option value="">Consumidor Final</option>
               ${clientes.map(c=>`<option value="${c.id}" data-nome="${escHtml(c.nome)}">${escHtml(c.nome)}</option>`).join('')}
             </select>
           </div>
@@ -2485,7 +2492,7 @@ async function pdvFinalizar() {
   const lastNum = vendas.reduce((m,v)=>Math.max(m,parseInt(v.numero||0)),0);
   const numero = String(lastNum+1).padStart(6,'0');
 
-  const venda = { numero, cliente_id:pdvClienteId||1, cliente_nome:pdvClienteNome,
+  const venda = { numero, cliente_id:pdvClienteId||null, cliente_nome:pdvClienteNome,
     data:new Date().toISOString(), forma_pagamento:pdvPayMethod,
     subtotal:sub, desconto:desc, total, status:'fechada' };
 
@@ -2978,7 +2985,7 @@ async function renderRelatorios() {
       colunas = ['Pedido','Cliente','Data','Pagamento','Total','Status'];
       dados = dados.map(v=>({Pedido:v.numero,Cliente:v.cliente_nome||'—',Data:fmtDateTime(v.data),Pagamento:v.forma_pagamento,Total:fmtMoney(v.total),Status:v.status}));
     } else if (tipo==='clientes') {
-      dados = await getAll('clientes');
+      dados = await getAll('clientes_cad');
       colunas = ['Nome','CPF/CNPJ','Telefone','Cidade','UF'];
       dados = dados.map(c=>({Nome:c.nome,['CPF/CNPJ']:c.cpf_cnpj||'—',Telefone:c.telefone||'—',Cidade:c.cidade||'—',UF:c.estado||'—'}));
     } else if (tipo==='produtos') {
