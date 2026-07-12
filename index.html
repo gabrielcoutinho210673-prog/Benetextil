@@ -1559,7 +1559,11 @@ function formSublimacao(r={}) {
     </div>
 
     <div class="col-12 mt-1"><div class="d-flex align-items-center gap-2 mb-1" style="border-bottom:2px solid #4361ee;padding-bottom:4px">
-      <i class="fas fa-dollar-sign text-primary"></i><strong class="text-primary">VALOR DE VENDA</strong></div></div>
+      <i class="fas fa-dollar-sign text-primary"></i><strong class="text-primary">PRAZO E VALOR DE VENDA</strong></div></div>
+    <div class="col-md-4">
+      <label class="form-label fw-semibold">DATA DE ENTREGA</label>
+      <input type="date" class="form-control" id="sDataEntrega" value="${v('data_entrega')}">
+    </div>
     <div class="col-md-4">
       <label class="form-label fw-semibold">VALOR DE VENDA (R$)</label>
       <div class="input-group"><span class="input-group-text">R$</span>
@@ -1663,6 +1667,7 @@ async function salvarSublimacao(id) {
     nome_cliente:     document.getElementById('sNomeCliente').value.trim(),
     telefone_cliente: document.getElementById('sTelefoneCliente').value.trim(),
     data_pedido:      document.getElementById('sDataPedido').value,
+    data_entrega:     document.getElementById('sDataEntrega').value || null,
     endereco_cliente: document.getElementById('sEndereco').value.trim(),
     tecido:      document.getElementById('sTecido').value,
     cod_cor:     document.getElementById('sCodCor').value,
