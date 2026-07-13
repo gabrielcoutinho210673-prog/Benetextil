@@ -1736,12 +1736,11 @@ async function salvarSublimacao(id) {
 
       // Envia para Contas a Receber se houver valor de venda
       if (data.valor_venda > 0) {
-        const hoje = localDateStr();
         await insert('contas_receber', {
-          descricao:  `Sublimação — ${descricao}`,
-          cliente:    data.nome_cliente || descricao,
+          descricao:  `Sublimação — ${descricao || data.nome_cliente || ''}`,
+          cliente:    data.nome_cliente || '',
           valor:      data.valor_venda,
-          vencimento: hoje,
+          vencimento: data.data_entrega || localDateStr(),
           status:     'pendente',
           ativo: 1
         });
