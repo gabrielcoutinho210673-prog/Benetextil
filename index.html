@@ -1455,7 +1455,7 @@ async function renderSublimacao(search) {
             <tbody>
             ${dados.length ? dados.map(r => {
               const totalMetro = (parseFloat(r.valor_metro)||0)*(parseFloat(r.qtd_metro)||0);
-              const total = [totalMetro, r.uber, r.almoco, r.gasolina, r.estacionamento, r.brim, r.mao_obra_anderson].reduce((s,v)=>s+(parseFloat(v)||0),0);
+              const total = [r.uber, r.almoco, r.gasolina, r.estacionamento, r.brim, r.mao_obra_anderson].reduce((s,v)=>s+(parseFloat(v)||0),0);
               return `<tr>
                 <td class="ps-3"><strong>${escHtml(r.descricao||'—')}</strong></td>
                 <td>${escHtml(r.tecido||'—')}<br><small class="text-muted">${escHtml(r.cod_cor||'—')}</small></td>
@@ -1693,9 +1693,8 @@ async function salvarSublimacao(id) {
     } else {
       await insert('sublimacao', data);
 
-      // Calcula total gasto
-      const totalMetro = data.qtd_metro * data.valor_metro;
-      const totalGasto = totalMetro + data.uber + data.almoco + data.gasolina + data.estacionamento + data.brim + data.mao_obra_anderson;
+      // Calcula total gasto (tecido não entra — é valor cobrado do cliente)
+      const totalGasto = data.uber + data.almoco + data.gasolina + data.estacionamento + data.brim + data.mao_obra_anderson;
 
       // Envia para Contas a Pagar se houver custo
       if (totalGasto > 0) {
@@ -1703,7 +1702,6 @@ async function salvarSublimacao(id) {
 
         // Detalha cada custo separado
         const itens = [
-          { label: 'Tecido/Metro', val: totalMetro },
           { label: 'Uber',         val: data.uber },
           { label: 'Almoço',       val: data.almoco },
           { label: 'Gasolina',     val: data.gasolina },
