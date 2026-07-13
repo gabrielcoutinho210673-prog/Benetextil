@@ -1644,6 +1644,8 @@ function calcTotalSublimacao() {
   const totalMetro = qtd * vMetro;
   const subEl = document.getElementById('subTotalMetro');
   if (subEl) subEl.textContent = totalMetro.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+  const vendaEl = document.getElementById('sValorVenda');
+  if (vendaEl && totalMetro > 0) vendaEl.value = totalMetro.toFixed(2);
   const outros = ['uber','almoco','gasolina','estacionamento','brim','mao_obra_anderson'].reduce((s,id)=>s+(parseFloat(document.getElementById(id)?.value)||0),0);
   const total = outros;
   const el = document.getElementById('sublimacaoTotalDisplay');
