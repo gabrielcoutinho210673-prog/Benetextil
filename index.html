@@ -1507,7 +1507,7 @@ function formSublimacao(r={}) {
 
     <div class="col-12 mt-1"><div class="d-flex align-items-center gap-2 mb-1" style="border-bottom:2px solid #4361ee;padding-bottom:4px">
       <i class="fas fa-info-circle text-primary"></i><strong class="text-primary">IDENTIFICAÇÃO</strong></div></div>
-    <div class="col-12"><label class="form-label">Descrição *</label><input class="form-control" id="sDesc" value="${v('descricao')}" placeholder="Ex: Camiseta polo azul marinho"></div>
+    <div class="col-12"><label class="form-label">Observação</label><input class="form-control" id="sDesc" value="${v('descricao')}" placeholder="Ex: Camiseta polo azul marinho"></div>
 
     <div class="col-12 mt-1"><div class="d-flex align-items-center gap-2 mb-1" style="border-bottom:2px solid #4361ee;padding-bottom:4px">
       <i class="fas fa-tshirt text-primary"></i><strong class="text-primary">TECIDO</strong></div></div>
@@ -1664,7 +1664,6 @@ function calcTotalSublimacao() {
 
 async function salvarSublimacao(id) {
   const descricao = document.getElementById('sDesc').value.trim();
-  if (!descricao) { toast('Descrição é obrigatória','danger'); return; }
   const data = {
     descricao,
     nome_cliente:     document.getElementById('sNomeCliente').value.trim(),
