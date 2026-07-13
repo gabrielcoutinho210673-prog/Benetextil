@@ -1561,12 +1561,18 @@ function formSublimacao(r={}) {
 
     <div class="col-12 mt-1"><div class="d-flex align-items-center gap-2 mb-1" style="border-bottom:2px solid #4361ee;padding-bottom:4px">
       <i class="fas fa-dollar-sign text-primary"></i><strong class="text-primary">PRAZO E VALOR DE VENDA</strong></div></div>
-    <div class="col-md-4">
+    <div class="col-md-3">
       <label class="form-label fw-semibold">DATA DE ENTREGA</label>
       <input type="date" class="form-control" id="sDataEntrega" value="${v('data_entrega')}">
     </div>
-    <div class="col-md-4">
-      <label class="form-label fw-semibold">VALOR DE VENDA (R$)</label>
+    <div class="col-md-3">
+      <label class="form-label fw-semibold">VALOR COBRADO DO TECIDO (R$)</label>
+      <div class="input-group"><span class="input-group-text">R$</span>
+        <input type="number" class="form-control" id="sValorTecidoVenda" step="0.01" min="0" value="${v('valor_venda')}" oninput="calcTotalSublimacao()" style="background:#f0fff4">
+      </div>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label fw-semibold">VALOR DE VENDA TOTAL (R$)</label>
       <div class="input-group"><span class="input-group-text">R$</span>
         <input type="number" class="form-control" id="sValorVenda" step="0.01" min="0" value="${v('valor_venda')}" oninput="calcTotalSublimacao()">
       </div>
@@ -1645,6 +1651,8 @@ function calcTotalSublimacao() {
   const subEl = document.getElementById('subTotalMetro');
   if (subEl) subEl.textContent = totalMetro.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
   const vendaEl = document.getElementById('sValorVenda');
+  const tecidoVendaEl = document.getElementById('sValorTecidoVenda');
+  if (tecidoVendaEl && totalMetro > 0) tecidoVendaEl.value = totalMetro.toFixed(2);
   if (vendaEl && totalMetro > 0) vendaEl.value = totalMetro.toFixed(2);
   const outros = ['uber','almoco','gasolina','estacionamento','brim','mao_obra_anderson'].reduce((s,id)=>s+(parseFloat(document.getElementById(id)?.value)||0),0);
   const total = outros;
