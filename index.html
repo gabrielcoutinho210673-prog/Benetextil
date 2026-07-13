@@ -745,6 +745,8 @@ function novoClienteCad(c={}) {
       <input class="form-control" id="ccContato" value="${escHtml(c.contato||'')}"></div>
     <div class="col-md-8"><label class="form-label fw-semibold">ENDEREÇO</label>
       <input class="form-control" id="ccEndereco" value="${escHtml(c.endereco||'')}"></div>
+    <div class="col-md-4"><label class="form-label fw-semibold">BAIRRO</label>
+      <input class="form-control" id="ccBairro" value="${escHtml(c.bairro||'')}"></div>
     <div class="col-md-4"><label class="form-label fw-semibold">CIDADE</label>
       <input class="form-control" id="ccCidade" value="${escHtml(c.cidade||'')}"></div>
     <div class="col-md-4"><label class="form-label fw-semibold">ESTADO</label>
@@ -773,6 +775,7 @@ async function salvarClienteCad(id) {
     email:      document.getElementById('ccEmail').value.trim(),
     contato:    document.getElementById('ccContato').value.trim(),
     endereco:   document.getElementById('ccEndereco').value.trim(),
+    bairro:     document.getElementById('ccBairro').value.trim(),
     cidade:     document.getElementById('ccCidade').value.trim(),
     estado:     document.getElementById('ccEstado').value.trim(),
     observacoes:document.getElementById('ccObs').value.trim(),
