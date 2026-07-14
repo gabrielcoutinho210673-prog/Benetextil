@@ -1408,7 +1408,7 @@ async function salvarCliente(id) {
     valor_total:    parseFloat(document.getElementById('cValorTotal').value)||0,
     entrada:        parseFloat(document.getElementById('cEntrada').value)||0,
     forma_pagamento:document.getElementById('cFormaPag').value,
-    obs_corte:        document.getElementById('cObsCorte').value,
+    obs_corte:        document.getElementById('cObsCorte')?.value||'',
     corte_qtd:        parseFloat(document.getElementById('cCorteQtd1').value)||0,
     corte_valor:      parseFloat(document.getElementById('cCorteValor1').value)||0,
     peca2_corte_qtd:  parseFloat(document.getElementById('cCorteQtd2').value)||0,
