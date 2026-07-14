@@ -983,7 +983,8 @@ function formCliente(c={}) {
                 <span><strong>Tecido:</strong> <span id="custoPeca${i}_tecido">R$ 0,00</span></span>
                 <span><strong>Estampa/Bordado:</strong> <span id="custoPeca${i}_estampa">R$ 0,00</span></span>
                 <span><strong>Aviamentos:</strong> <span id="custoPeca${i}_avia">R$ 0,00</span></span>
-                <span><strong>Rateio Costura:</strong> <span id="custoPeca${i}_costura">R$ 0,00</span></span>
+                <span><strong>Costura:</strong> <span id="custoPeca${i}_costura">R$ 0,00</span></span>
+                <span id="custoPeca${i}_costuraDetalhe" style="font-size:0.8rem;color:#636e72"></span>
                 <span><strong>Corte:</strong> <span id="custoPeca${i}_corte">R$ 0,00</span></span>
                 <span style="font-size:1rem;font-weight:700;color:#4361ee"><i class="fas fa-calculator me-1"></i>Total da Peça: <span id="custoPeca${i}_total">R$ 0,00</span></span>
                 <span style="font-size:1rem;font-weight:700;color:#7c3aed"><i class="fas fa-tag me-1"></i>Custo/Un: <span id="custoPeca${i}_unit">R$ 0,00</span></span>
@@ -1225,10 +1226,14 @@ function calcResumo() {
 
   const qtdC = parseInt(document.getElementById('costuraQtd')?.value)||0;
   let costura = 0;
+  const costuraDetalhes = [];
   for(let i=1;i<=qtdC;i++) {
+    const nome = document.getElementById(`costura_${i}`)?.value||`Costureira ${i}`;
     const q = parseFloat(document.getElementById(`costura_qtd_${i}`)?.value)||0;
     const vv = parseFloat(document.getElementById(`costura_val_${i}`)?.value)||0;
-    costura += q * vv;
+    const tot = q * vv;
+    costura += tot;
+    if (tot > 0) costuraDetalhes.push({ nome, tot });
   }
   const costuraRateio = costura;
 
@@ -1269,6 +1274,10 @@ function calcResumo() {
     setEl(`custoPeca${i}_estampa`,  ativo ? estampaValor : 0);
     setEl(`custoPeca${i}_avia`,     ativo ? aviaSum      : 0);
     setEl(`custoPeca${i}_costura`, ativo ? costuraRateio : 0);
+    const detEl = document.getElementById(`custoPeca${i}_costuraDetalhe`);
+    if (detEl) detEl.innerHTML = ativo && costuraDetalhes.length > 1
+      ? costuraDetalhes.map(d=>`${d.nome}: ${fmtMoney(d.tot)}`).join(' | ')
+      : '';
     setEl(`custoPeca${i}_corte`,   ativo ? corteTotal   : 0);
     // Venda: usa campo específico da peça; se vazio, distribui valor_total pela qtd total
     const vendaUnitCampo = parseFloat(document.getElementById(`cVendaValor${i}`)?.value)||0;
