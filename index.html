@@ -1006,6 +1006,12 @@ function formCliente(c={}) {
         ${['','Dinheiro','PIX','Cartão Crédito','Cartão Débito','Cheque','Fiado'].map(o=>`<option${v('forma_pagamento')===o?' selected':''}>${o}</option>`).join('')}
       </select></div>
 
+    ${secTitle('receipt','CUSTOS OPERACIONAIS')}
+    <div class="col-md-3"><label class="form-label">Uber (R$)</label><div class="input-group"><span class="input-group-text">R$</span><input type="number" class="form-control" id="cUber" step="0.01" min="0" value="${v('uber')}" oninput="calcResumo()"></div></div>
+    <div class="col-md-3"><label class="form-label">Almoço (R$)</label><div class="input-group"><span class="input-group-text">R$</span><input type="number" class="form-control" id="cAlmoco" step="0.01" min="0" value="${v('almoco')}" oninput="calcResumo()"></div></div>
+    <div class="col-md-3"><label class="form-label">Gasolina (R$)</label><div class="input-group"><span class="input-group-text">R$</span><input type="number" class="form-control" id="cGasolina" step="0.01" min="0" value="${v('gasolina')}" oninput="calcResumo()"></div></div>
+    <div class="col-md-3"><label class="form-label">Estacionamento (R$)</label><div class="input-group"><span class="input-group-text">R$</span><input type="number" class="form-control" id="cEstacionamento" step="0.01" min="0" value="${v('estacionamento')}" oninput="calcResumo()"></div></div>
+
     ${secTitle('industry','OBSERVAÇÃO DO SETOR')}
     <div class="col-12"><label class="form-label">Acabamento</label><textarea class="form-control" id="cObsAcabamento" rows="2">${v('obs_acabamento')}</textarea></div>
 
@@ -1257,6 +1263,10 @@ function calcResumo() {
       aviaSum += tot;
       setEl(`p${i}_avia_${a.key}_tot`, tot);
     });
+    const operacional = (parseFloat(document.getElementById('cUber')?.value)||0)
+                      + (parseFloat(document.getElementById('cAlmoco')?.value)||0)
+                      + (parseFloat(document.getElementById('cGasolina')?.value)||0)
+                      + (parseFloat(document.getElementById('cEstacionamento')?.value)||0);
     const corteQtd = parseFloat(document.getElementById(`cCorteQtd${i}`)?.value)||0;
     const corteUn  = parseFloat(document.getElementById(`cCorteValor${i}`)?.value)||0;
     const corteTotal = corteQtd * corteUn;
@@ -1267,7 +1277,7 @@ function calcResumo() {
       const sv = parseFloat(document.getElementById(`silk_val_${s}`)?.value)||0;
       silkTotal += sq * sv;
     }
-    const total = ativo ? (tec + estampaValor + aviaSum + costuraRateio + corteTotal + silkTotal) : 0;
+    const total = ativo ? (tec + estampaValor + aviaSum + costuraRateio + corteTotal + silkTotal + operacional) : 0;
     const qtd   = parseFloat(document.getElementById(`cQtd${i}`)?.value)||0;
     const unit  = (total > 0 && qtd > 0) ? total / qtd : 0;
     setEl(`custoPeca${i}_tecido`,   tec);
@@ -1419,6 +1429,10 @@ async function salvarCliente(id) {
     peca4_corte_valor:parseFloat(document.getElementById('cCorteValor4').value)||0,
     peca5_corte_qtd:  parseFloat(document.getElementById('cCorteQtd5').value)||0,
     peca5_corte_valor:parseFloat(document.getElementById('cCorteValor5').value)||0,
+    uber:           parseFloat(document.getElementById('cUber')?.value)||0,
+    almoco:         parseFloat(document.getElementById('cAlmoco')?.value)||0,
+    gasolina:       parseFloat(document.getElementById('cGasolina')?.value)||0,
+    estacionamento: parseFloat(document.getElementById('cEstacionamento')?.value)||0,
     obs_acabamento: document.getElementById('cObsAcabamento').value,
     silk_qtd:       silkQtd,
     bordado_qtd:    bordadoQtd,
