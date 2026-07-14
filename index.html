@@ -1076,7 +1076,12 @@ function formCliente(c={}) {
   if (c.silk_qtd > 0) {
     document.getElementById('silkQtd').value = c.silk_qtd;
     updateDinamico('silk','silkQtd','silkCampos','Código de Cor',4);
-    for(let i=1;i<=c.silk_qtd;i++) { const el=document.getElementById(`silk_${i}`); if(el) el.value=c[`silk_${i}`]||''; }
+    for(let i=1;i<=c.silk_qtd;i++) {
+      const el=document.getElementById(`silk_${i}`); if(el) el.value=c[`silk_${i}`]||'';
+      const eq=document.getElementById(`silk_qtd_${i}`); if(eq) eq.value=c[`silk_qtd_${i}`]||0;
+      const ev=document.getElementById(`silk_val_${i}`); if(ev) ev.value=c[`silk_val_${i}`]||0;
+      const et=document.getElementById(`silk_tot_${i}`); if(et) et.value=((c[`silk_qtd_${i}`]||0)*(c[`silk_val_${i}`]||0)).toFixed(2);
+    }
   }
   if (c.bordado_qtd > 0) {
     document.getElementById('bordadoQtd').value = c.bordado_qtd;
@@ -1106,8 +1111,42 @@ function updateDinamico(prefixo, selectId, containerId, labelBase, max) {
   const container = document.getElementById(containerId);
   container.innerHTML = '';
   for(let i=1;i<=qtd;i++) {
-    container.innerHTML += `<div class="col-md-3"><label class="form-label small">${labelBase} ${i}</label><input class="form-control form-control-sm" id="${prefixo}_${i}" placeholder="${labelBase} ${i}"></div>`;
+    if (prefixo === 'silk') {
+      container.innerHTML += `
+        <div class="col-12">
+          <div class="p-2 rounded mb-1" style="background:#f8f9fa;border:1px solid #dee2e6">
+            <div class="row g-2 align-items-end">
+              <div class="col-md-3"><label class="form-label small mb-1">CÓDIGO DE COR ${i}</label>
+                <input class="form-control form-control-sm" id="${prefixo}_${i}" placeholder="Ex: 0001, Azul Royal..."></div>
+              <div class="col-md-2"><label class="form-label small mb-1">QUANTIDADE</label>
+                <input type="number" class="form-control form-control-sm" id="${prefixo}_qtd_${i}" min="0" step="1" placeholder="0" oninput="calcSilkTotal()"></div>
+              <div class="col-md-2"><label class="form-label small mb-1">VALOR/UN (R$)</label>
+                <div class="input-group input-group-sm"><span class="input-group-text">R$</span>
+                <input type="number" class="form-control" id="${prefixo}_val_${i}" min="0" step="0.01" placeholder="0,00" oninput="calcSilkTotal()"></div></div>
+              <div class="col-md-2"><label class="form-label small mb-1">TOTAL</label>
+                <div class="input-group input-group-sm"><span class="input-group-text">R$</span>
+                <input type="number" class="form-control" id="${prefixo}_tot_${i}" readonly style="background:#f0f4ff"></div></div>
+            </div>
+          </div>
+        </div>`;
+    } else {
+      container.innerHTML += `<div class="col-md-3"><label class="form-label small">${labelBase} ${i}</label><input class="form-control form-control-sm" id="${prefixo}_${i}" placeholder="${labelBase} ${i}"></div>`;
+    }
   }
+}
+
+function calcSilkTotal() {
+  const qtd = parseInt(document.getElementById('silkQtd')?.value)||0;
+  let total = 0;
+  for(let i=1;i<=qtd;i++) {
+    const q = parseFloat(document.getElementById(`silk_qtd_${i}`)?.value)||0;
+    const v = parseFloat(document.getElementById(`silk_val_${i}`)?.value)||0;
+    const t = q * v;
+    total += t;
+    const el = document.getElementById(`silk_tot_${i}`);
+    if (el) el.value = t.toFixed(2);
+  }
+  calcResumo();
 }
 
 function updateCostura() {
@@ -1217,7 +1256,14 @@ function calcResumo() {
     const corteQtd = parseFloat(document.getElementById(`cCorteQtd${i}`)?.value)||0;
     const corteUn  = parseFloat(document.getElementById(`cCorteValor${i}`)?.value)||0;
     const corteTotal = corteQtd * corteUn;
-    const total = ativo ? (tec + estampaValor + aviaSum + costuraRateio + corteTotal) : 0;
+    const silkQtdN = parseInt(document.getElementById('silkQtd')?.value)||0;
+    let silkTotal = 0;
+    for(let s=1;s<=silkQtdN;s++) {
+      const sq = parseFloat(document.getElementById(`silk_qtd_${s}`)?.value)||0;
+      const sv = parseFloat(document.getElementById(`silk_val_${s}`)?.value)||0;
+      silkTotal += sq * sv;
+    }
+    const total = ativo ? (tec + estampaValor + aviaSum + costuraRateio + corteTotal + silkTotal) : 0;
     const qtd   = parseFloat(document.getElementById(`cQtd${i}`)?.value)||0;
     const unit  = (total > 0 && qtd > 0) ? total / qtd : 0;
     setEl(`custoPeca${i}_tecido`,   tec);
@@ -1265,7 +1311,11 @@ async function salvarCliente(id) {
   const costuraQtd = parseInt(document.getElementById('costuraQtd')?.value)||0;
 
   const dinamicos = {};
-  for(let i=1;i<=4;i++) dinamicos[`silk_${i}`] = document.getElementById(`silk_${i}`)?.value||'';
+  for(let i=1;i<=4;i++) {
+    dinamicos[`silk_${i}`]     = document.getElementById(`silk_${i}`)?.value||'';
+    dinamicos[`silk_qtd_${i}`] = parseFloat(document.getElementById(`silk_qtd_${i}`)?.value)||0;
+    dinamicos[`silk_val_${i}`] = parseFloat(document.getElementById(`silk_val_${i}`)?.value)||0;
+  }
   for(let i=1;i<=5;i++) dinamicos[`bordado_${i}`] = document.getElementById(`bordado_${i}`)?.value||'';
   let costuraTotal = 0;
   for(let i=1;i<=5;i++) {
