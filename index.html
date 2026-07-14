@@ -964,6 +964,8 @@ function formCliente(c={}) {
           <div class="col-md-2"><label class="form-label">Valor Estampa/Bordado (R$)</label><div class="input-group"><span class="input-group-text">R$</span><input type="number" class="form-control" id="cEstampaValor${i}" step="0.01" min="0" value="${v(i===1?'estampa_valor':`peca${i}_estampa_valor`)}" oninput="calcResumo()"></div></div>
           <div class="col-md-3"><label class="form-label">Observações</label><input class="form-control" id="cObsServico${i}" value="${v(i===1?'obs_servico':`peca${i}_obs`)}"></div>
           <div class="col-md-2"><label class="form-label">Valor de Venda/Un (R$)</label><div class="input-group"><span class="input-group-text">R$</span><input type="number" class="form-control" id="cVendaValor${i}" step="0.01" min="0" value="${v(i===1?'venda_valor':`peca${i}_venda_valor`)}" oninput="calcResumo()" placeholder="0,00"></div></div>
+          <div class="col-md-2"><label class="form-label">Qtd Peças p/ Corte</label><input type="number" class="form-control" id="cCorteQtd${i}" min="0" step="1" value="${v(i===1?'corte_qtd':`peca${i}_corte_qtd`)}" oninput="calcResumo()"></div>
+          <div class="col-md-2"><label class="form-label">Valor do Corte/Un (R$)</label><div class="input-group"><span class="input-group-text">R$</span><input type="number" class="form-control" id="cCorteValor${i}" step="0.01" min="0" value="${v(i===1?'corte_valor':`peca${i}_corte_valor`)}" oninput="calcResumo()"></div></div>
           <div class="col-12 mt-1">
             <div style="background:#f8f9fa;border:1px solid #dee2e6;border-radius:8px;padding:10px">
               <div class="fw-semibold mb-2" style="font-size:0.83rem;color:#4361ee"><i class="fas fa-tags me-1"></i>AVIAMENTOS DA PEÇA ${i}</div>
@@ -983,6 +985,7 @@ function formCliente(c={}) {
                 <span><strong>Estampa/Bordado:</strong> <span id="custoPeca${i}_estampa">R$ 0,00</span></span>
                 <span><strong>Aviamentos:</strong> <span id="custoPeca${i}_avia">R$ 0,00</span></span>
                 <span><strong>Rateio Costura:</strong> <span id="custoPeca${i}_costura">R$ 0,00</span></span>
+                <span><strong>Corte:</strong> <span id="custoPeca${i}_corte">R$ 0,00</span></span>
                 <span style="font-size:1rem;font-weight:700;color:#4361ee"><i class="fas fa-calculator me-1"></i>Total da Peça: <span id="custoPeca${i}_total">R$ 0,00</span></span>
                 <span style="font-size:1rem;font-weight:700;color:#7c3aed"><i class="fas fa-tag me-1"></i>Custo/Un: <span id="custoPeca${i}_unit">R$ 0,00</span></span>
                 <span style="font-size:1rem;font-weight:700;color:#059669"><i class="fas fa-arrow-trend-up me-1"></i>Lucro da Peça: <span id="custoPeca${i}_lucro">—</span></span>
@@ -1004,13 +1007,8 @@ function formCliente(c={}) {
       </select></div>
 
     ${secTitle('industry','OBSERVAÇÃO DO SETOR')}
-    <div class="col-md-5"><label class="form-label">Corte — Descrição</label><textarea class="form-control" id="cObsCorte" rows="2">${v('obs_corte')}</textarea></div>
-    <div class="col-md-2"><label class="form-label">Corte — Valor (R$)</label>
-      <div class="input-group"><span class="input-group-text">R$</span>
-        <input type="number" class="form-control" id="cCorteValor" step="0.01" min="0" value="${v('corte_valor')}" oninput="calcResumo()">
-      </div>
-    </div>
-    <div class="col-md-5"><label class="form-label">Acabamento</label><textarea class="form-control" id="cObsAcabamento" rows="2">${v('obs_acabamento')}</textarea></div>
+    <div class="col-md-6"><label class="form-label">Observação Corte</label><textarea class="form-control" id="cObsCorte" rows="2">${v('obs_corte')}</textarea></div>
+    <div class="col-md-6"><label class="form-label">Acabamento</label><textarea class="form-control" id="cObsAcabamento" rows="2">${v('obs_acabamento')}</textarea></div>
 
     <div class="col-12"><label class="form-label fw-semibold">SILK — Quantas cores?</label>
       <div class="d-flex align-items-center gap-2 mb-2">
@@ -1217,14 +1215,17 @@ function calcResumo() {
       aviaSum += tot;
       setEl(`p${i}_avia_${a.key}_tot`, tot);
     });
-    const corteValor = parseFloat(document.getElementById('cCorteValor')?.value)||0;
-    const total = ativo ? (tec + estampaValor + aviaSum + costuraRateio + corteValor) : 0;
+    const corteQtd = parseFloat(document.getElementById(`cCorteQtd${i}`)?.value)||0;
+    const corteUn  = parseFloat(document.getElementById(`cCorteValor${i}`)?.value)||0;
+    const corteTotal = corteQtd * corteUn;
+    const total = ativo ? (tec + estampaValor + aviaSum + costuraRateio + corteTotal) : 0;
     const qtd   = parseFloat(document.getElementById(`cQtd${i}`)?.value)||0;
     const unit  = (total > 0 && qtd > 0) ? total / qtd : 0;
     setEl(`custoPeca${i}_tecido`,   tec);
     setEl(`custoPeca${i}_estampa`,  ativo ? estampaValor : 0);
     setEl(`custoPeca${i}_avia`,     ativo ? aviaSum      : 0);
     setEl(`custoPeca${i}_costura`, ativo ? costuraRateio : 0);
+    setEl(`custoPeca${i}_corte`,   ativo ? corteTotal   : 0);
     // Venda: usa campo específico da peça; se vazio, distribui valor_total pela qtd total
     const vendaUnitCampo = parseFloat(document.getElementById(`cVendaValor${i}`)?.value)||0;
     const vendaUnit = vendaUnitCampo > 0 ? vendaUnitCampo
@@ -1350,8 +1351,17 @@ async function salvarCliente(id) {
     valor_total:    parseFloat(document.getElementById('cValorTotal').value)||0,
     entrada:        parseFloat(document.getElementById('cEntrada').value)||0,
     forma_pagamento:document.getElementById('cFormaPag').value,
-    obs_corte:      document.getElementById('cObsCorte').value,
-    corte_valor:    parseFloat(document.getElementById('cCorteValor').value)||0,
+    obs_corte:        document.getElementById('cObsCorte').value,
+    corte_qtd:        parseFloat(document.getElementById('cCorteQtd1').value)||0,
+    corte_valor:      parseFloat(document.getElementById('cCorteValor1').value)||0,
+    peca2_corte_qtd:  parseFloat(document.getElementById('cCorteQtd2').value)||0,
+    peca2_corte_valor:parseFloat(document.getElementById('cCorteValor2').value)||0,
+    peca3_corte_qtd:  parseFloat(document.getElementById('cCorteQtd3').value)||0,
+    peca3_corte_valor:parseFloat(document.getElementById('cCorteValor3').value)||0,
+    peca4_corte_qtd:  parseFloat(document.getElementById('cCorteQtd4').value)||0,
+    peca4_corte_valor:parseFloat(document.getElementById('cCorteValor4').value)||0,
+    peca5_corte_qtd:  parseFloat(document.getElementById('cCorteQtd5').value)||0,
+    peca5_corte_valor:parseFloat(document.getElementById('cCorteValor5').value)||0,
     obs_acabamento: document.getElementById('cObsAcabamento').value,
     silk_qtd:       silkQtd,
     bordado_qtd:    bordadoQtd,
