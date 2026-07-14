@@ -1230,7 +1230,7 @@ function calcResumo() {
     const vv = parseFloat(document.getElementById(`costura_val_${i}`)?.value)||0;
     costura += q * vv;
   }
-  const costuraRateio = nPecas > 0 ? costura / nPecas : 0;
+  const costuraRateio = costura;
 
   const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = fmtMoney(val); };
 
