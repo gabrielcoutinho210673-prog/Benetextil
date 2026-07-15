@@ -1712,26 +1712,28 @@ function formSublimacao(r={}) {
     <div class="col-12"><label class="form-label">Observação</label><input class="form-control" id="sDesc" value="${v('descricao')}" placeholder="Ex: Camiseta polo azul marinho"></div>
 
     <div class="col-12 mt-1"><div class="d-flex align-items-center gap-2 mb-1" style="border-bottom:2px solid #4361ee;padding-bottom:4px">
-      <i class="fas fa-tshirt text-primary"></i><strong class="text-primary">TECIDO</strong></div></div>
+      <i class="fas fa-tshirt text-primary"></i><strong class="text-primary">TECIDO — USO NA PRODUÇÃO</strong></div></div>
     <div class="col-md-4"><label class="form-label">Tecido</label><input class="form-control" id="sTecido" value="${v('tecido')}" placeholder="Ex: Malha PV, Dry Fit..."></div>
     <div class="col-md-3"><label class="form-label">Código da Cor do Tecido</label><input class="form-control" id="sCodCor" value="${v('cod_cor')}" placeholder="Ex: 0001, Azul Royal..."></div>
-    <div class="col-md-2"><label class="form-label">Qtd. de Metros (m²)</label><input type="number" class="form-control" id="qtd_metro" step="0.01" min="0" value="${v('qtd_metro')}" oninput="calcTotalSublimacao()" placeholder="0,00"></div>
-    <div class="col-md-2"><label class="form-label">Custo de Compra/m² (R$)</label><div class="input-group"><span class="input-group-text">R$</span><input type="number" class="form-control" id="custo_tecido_metro" step="0.01" min="0" value="${v('custo_tecido_metro')}" oninput="calcTotalSublimacao()" placeholder="0,00"></div></div>
+    <div class="col-md-2"><label class="form-label">Metros usados (m²)</label><input type="number" class="form-control" id="qtd_metro" step="0.01" min="0" value="${v('qtd_metro')}" oninput="calcTotalSublimacao()" placeholder="0,00"></div>
     <div class="col-md-3"><label class="form-label">Valor cobrado do cliente/m² (R$)</label><div class="input-group"><span class="input-group-text">R$</span><input type="number" class="form-control" id="valor_metro" step="0.01" min="0" value="${v('valor_metro')}" oninput="calcTotalSublimacao()"></div></div>
-    <div class="col-12"><div class="d-flex flex-wrap align-items-center gap-3 px-2 py-2 rounded" style="background:#f0fdf4;border:1px solid #10b981">
-      <div class="d-flex align-items-center gap-2">
-        <i class="fas fa-tag text-success"></i>
-        <small class="text-muted fw-semibold">Cobrado do cliente:</small>
-        <strong class="text-success" id="subTotalMetro">R$ 0,00</strong>
-        <small class="text-muted">(não entra no Total Gasto)</small>
-      </div>
-      <div class="vr d-none d-md-block"></div>
-      <div class="d-flex align-items-center gap-2">
-        <i class="fas fa-shopping-cart text-danger"></i>
-        <small class="text-muted fw-semibold">Custo de compra do tecido:</small>
-        <strong class="text-danger" id="subCustoTecido">R$ 0,00</strong>
-        <small class="text-muted">(entra no Total Gasto)</small>
-      </div>
+    <div class="col-12"><div class="d-flex align-items-center gap-2 px-2 py-1 rounded" style="background:#d1fae5;border:1px solid #10b981">
+      <i class="fas fa-tag text-success"></i>
+      <small class="text-muted fw-semibold">Valor cobrado do cliente pelo tecido:</small>
+      <strong class="text-success" id="subTotalMetro">R$ 0,00</strong>
+      <small class="text-muted ms-1">(não entra no Total Gasto)</small>
+    </div></div>
+
+    <div class="col-12 mt-2"><div class="d-flex align-items-center gap-2 mb-1" style="border-bottom:2px solid #dc2626;padding-bottom:4px">
+      <i class="fas fa-shopping-cart text-danger"></i><strong class="text-danger">COMPRA DO TECIDO</strong>
+      <small class="text-muted">(custo real pago por você)</small></div></div>
+    <div class="col-md-3"><label class="form-label">Metros comprados</label><input type="number" class="form-control" id="compra_tecido_metros" step="0.01" min="0" value="${v('compra_tecido_metros')}" oninput="calcTotalSublimacao()" placeholder="0,00"></div>
+    <div class="col-md-3"><label class="form-label">Valor pago por metro (R$)</label><div class="input-group"><span class="input-group-text">R$</span><input type="number" class="form-control" id="compra_tecido_valor_metro" step="0.01" min="0" value="${v('compra_tecido_valor_metro')}" oninput="calcTotalSublimacao()" placeholder="0,00"></div></div>
+    <div class="col-md-3"><label class="form-label">Total gasto na compra (R$)</label><div class="input-group"><span class="input-group-text">R$</span><input type="number" class="form-control" id="compra_tecido_total" step="0.01" min="0" value="${v('compra_tecido_total')}" oninput="calcTotalSublimacao()" placeholder="ou digite direto" style="background:#fff5f5"></div></div>
+    <div class="col-md-3 d-flex align-items-end"><div class="p-2 rounded w-100 text-center" style="background:#fee2e2;border:1px solid #dc2626">
+      <div class="small text-muted">Custo do tecido</div>
+      <strong class="text-danger" id="subCustoTecido">R$ 0,00</strong>
+      <div class="small text-muted">(entra no Total Gasto)</div>
     </div></div>
 
     <div class="col-12 mt-1"><div class="d-flex align-items-center gap-2 mb-1" style="border-bottom:2px solid #4361ee;padding-bottom:4px">
@@ -1859,13 +1861,25 @@ function limparClienteSubl() {
 function calcTotalSublimacao() {
   const qtd = parseFloat(document.getElementById('qtd_metro')?.value)||0;
   const vMetro = parseFloat(document.getElementById('valor_metro')?.value)||0;
-  const custoMetro = parseFloat(document.getElementById('custo_tecido_metro')?.value)||0;
   const totalMetro = qtd * vMetro;
-  const custoTecidoTotal = qtd * custoMetro;
   const subEl = document.getElementById('subTotalMetro');
   if (subEl) subEl.textContent = totalMetro.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+
+  // Custo de compra do tecido: metros comprados × valor/m², ou total digitado direto
+  const compraMetros = parseFloat(document.getElementById('compra_tecido_metros')?.value)||0;
+  const compraValorM = parseFloat(document.getElementById('compra_tecido_valor_metro')?.value)||0;
+  const compraCalc = compraMetros * compraValorM;
+  const compraDireto = parseFloat(document.getElementById('compra_tecido_total')?.value)||0;
+  // Se digitou total direto, usa ele; senão usa o calculado
+  const custoTecidoTotal = compraDireto > 0 ? compraDireto : compraCalc;
+  // Atualiza campo total quando calculado
+  if (compraCalc > 0 && compraDireto === 0) {
+    const elT = document.getElementById('compra_tecido_total');
+    if (elT && !elT._manual) elT.value = compraCalc.toFixed(2);
+  }
   const subCustoEl = document.getElementById('subCustoTecido');
   if (subCustoEl) subCustoEl.textContent = custoTecidoTotal.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+
   const vendaEl = document.getElementById('sValorVenda');
   const tecidoVendaEl = document.getElementById('sValorTecidoVenda');
   if (tecidoVendaEl && totalMetro > 0) tecidoVendaEl.value = totalMetro.toFixed(2);
@@ -1897,9 +1911,11 @@ async function salvarSublimacao(id) {
     endereco_cliente: document.getElementById('sEndereco').value.trim(),
     tecido:      document.getElementById('sTecido').value,
     cod_cor:     document.getElementById('sCodCor').value,
-    qtd_metro:          parseFloat(document.getElementById('qtd_metro').value)||0,
-    custo_tecido_metro: parseFloat(document.getElementById('custo_tecido_metro')?.value)||0,
-    valor_metro:        parseFloat(document.getElementById('valor_metro').value)||0,
+    qtd_metro:                parseFloat(document.getElementById('qtd_metro').value)||0,
+    valor_metro:              parseFloat(document.getElementById('valor_metro').value)||0,
+    compra_tecido_metros:     parseFloat(document.getElementById('compra_tecido_metros')?.value)||0,
+    compra_tecido_valor_metro:parseFloat(document.getElementById('compra_tecido_valor_metro')?.value)||0,
+    compra_tecido_total:      parseFloat(document.getElementById('compra_tecido_total')?.value)||0,
     uber:           parseFloat(document.getElementById('uber').value)||0,
     almoco:         parseFloat(document.getElementById('almoco').value)||0,
     gasolina:       parseFloat(document.getElementById('gasolina').value)||0,
