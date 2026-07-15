@@ -357,7 +357,7 @@ const fmtMoney = v => 'R$ ' + parseFloat(v||0).toFixed(2).replace('.',',').repla
 const parseMoney = v => parseFloat(String(v).replace(/\./g,'').replace(',','.')) || 0;
 const fmtDate = d => { if(!d) return '—'; const dt=new Date(d); return isNaN(dt)?d:dt.toLocaleDateString('pt-BR'); };
 const fmtDateTime = d => { if(!d) return '—'; const dt=new Date(d); return isNaN(dt)?d:dt.toLocaleString('pt-BR'); };
-const escHtml = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const escHtml = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 
 function toast(msg, type='success') {
   const id = 'toast_'+Date.now();
@@ -407,8 +407,16 @@ async function conectar() {
   const btn = document.querySelector('#setupScreen button.btn-primary');
   if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Entrando...'; }
 
-  const { data: authData, error } = await supabaseClient.auth.signInWithPassword({ email, password: senha });
-  if (error) {
+  let authData, authError;
+  try {
+    const resp = await supabaseClient.auth.signInWithPassword({ email, password: senha });
+    authData = resp.data; authError = resp.error;
+  } catch(e) {
+    showSetupError('Erro de conexão. Verifique sua internet.');
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>Entrar'; }
+    return;
+  }
+  if (authError) {
     showSetupError('E-mail ou senha incorretos.');
     if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>Entrar'; }
     return;
@@ -1263,21 +1271,10 @@ function calcResumo() {
       aviaSum += tot;
       setEl(`p${i}_avia_${a.key}_tot`, tot);
     });
-    const operacional = (parseFloat(document.getElementById('cUber')?.value)||0)
-                      + (parseFloat(document.getElementById('cAlmoco')?.value)||0)
-                      + (parseFloat(document.getElementById('cGasolina')?.value)||0)
-                      + (parseFloat(document.getElementById('cEstacionamento')?.value)||0);
     const corteQtd = parseFloat(document.getElementById(`cCorteQtd${i}`)?.value)||0;
     const corteUn  = parseFloat(document.getElementById(`cCorteValor${i}`)?.value)||0;
     const corteTotal = corteQtd * corteUn;
-    const silkQtdN = parseInt(document.getElementById('silkQtd')?.value)||0;
-    let silkTotal = 0;
-    for(let s=1;s<=silkQtdN;s++) {
-      const sq = parseFloat(document.getElementById(`silk_qtd_${s}`)?.value)||0;
-      const sv = parseFloat(document.getElementById(`silk_val_${s}`)?.value)||0;
-      silkTotal += sq * sv;
-    }
-    const total = ativo ? (tec + estampaValor + aviaSum + costuraRateio + corteTotal + silkTotal + operacional) : 0;
+    const total = ativo ? (tec + estampaValor + aviaSum + costuraRateio + corteTotal) : 0;
     const qtd   = parseFloat(document.getElementById(`cQtd${i}`)?.value)||0;
     const unit  = (total > 0 && qtd > 0) ? total / qtd : 0;
     setEl(`custoPeca${i}_tecido`,   tec);
@@ -1309,6 +1306,20 @@ function calcResumo() {
     setLucro(`custoPeca${i}_lucroUnit`, lucroUnit);
     if (ativo) custoTotal += total;
   }
+
+  // Custos globais (calculados UMA vez, fora do loop de peças)
+  const operacional = (parseFloat(document.getElementById('cUber')?.value)||0)
+                    + (parseFloat(document.getElementById('cAlmoco')?.value)||0)
+                    + (parseFloat(document.getElementById('cGasolina')?.value)||0)
+                    + (parseFloat(document.getElementById('cEstacionamento')?.value)||0);
+  const silkQtdN = parseInt(document.getElementById('silkQtd')?.value)||0;
+  let silkTotal = 0;
+  for(let s=1;s<=silkQtdN;s++) {
+    const sq = parseFloat(document.getElementById(`silk_qtd_${s}`)?.value)||0;
+    const sv = parseFloat(document.getElementById(`silk_val_${s}`)?.value)||0;
+    silkTotal += sq * sv;
+  }
+  custoTotal += silkTotal + operacional;
 
   const lucro = valorTotal - custoTotal;
   const elC = document.getElementById('resumoCustoTotal');
@@ -1744,7 +1755,7 @@ function calcTotalSublimacao() {
   const vendaEl = document.getElementById('sValorVenda');
   const tecidoVendaEl = document.getElementById('sValorTecidoVenda');
   if (tecidoVendaEl && totalMetro > 0) tecidoVendaEl.value = totalMetro.toFixed(2);
-  if (vendaEl && totalMetro > 0) vendaEl.value = totalMetro.toFixed(2);
+  if (vendaEl && totalMetro > 0 && !vendaEl.value) vendaEl.value = totalMetro.toFixed(2);
   const outros = ['uber','almoco','gasolina','estacionamento','brim','mao_obra_anderson'].reduce((s,id)=>s+(parseFloat(document.getElementById(id)?.value)||0),0);
   const total = outros;
   const el = document.getElementById('sublimacaoTotalDisplay');
@@ -3090,7 +3101,7 @@ async function renderRelatorios() {
     } else if (tipo==='clientes') {
       dados = await getAll('clientes_cad');
       colunas = ['Nome','CPF/CNPJ','Telefone','Cidade','UF'];
-      dados = dados.map(c=>({Nome:c.nome,['CPF/CNPJ']:c.cpf_cnpj||'—',Telefone:c.telefone||'—',Cidade:c.cidade||'—',UF:c.estado||'—'}));
+      dados = dados.map(c=>({Nome:c.nome,['CPF/CNPJ']:c.cnpj||c.cpf_cnpj||'—',Telefone:c.telefone||'—',Cidade:c.cidade||'—',UF:c.estado||'—'}));
     } else if (tipo==='produtos') {
       dados = await getAll('produtos');
       colunas = ['Código','Nome','Categoria','UN','Custo','Venda','Estoque'];
