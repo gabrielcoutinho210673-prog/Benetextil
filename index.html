@@ -2966,10 +2966,18 @@ async function renderFinanceiro(sub='pagar') {
         c.vencimento && c.vencimento.startsWith(mesFiltro)
       );
 
-      // Agrupar por fornecedor (nome da costureira)
+      // Extrair nome da costureira: usa fornecedor se não for 'Benetextil',
+      // senão tenta parsear do formato novo "Costura — NomeCostureira — Pedido"
+      const getNomeCostureira = c => {
+        if (c.fornecedor && c.fornecedor !== 'Benetextil') return c.fornecedor;
+        const m = (c.descricao||'').match(/^Costura — (.+?) — /);
+        return m ? m[1] : (c.fornecedor || 'Sem nome');
+      };
+
+      // Agrupar por nome da costureira
       const por_func = {};
       entradas.forEach(c => {
-        const nome = c.fornecedor || 'Sem nome';
+        const nome = getNomeCostureira(c);
         if (!por_func[nome]) por_func[nome] = { pendente: 0, pago: 0, itens: [] };
         const val = parseFloat(c.valor)||0;
         por_func[nome][c.status==='pago'?'pago':'pendente'] += val;
