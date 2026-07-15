@@ -190,6 +190,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--body);color:#2
             <li><button onclick="nav('financeiro','pagar')"><i class="fas fa-file-invoice-dollar"></i>Contas a Pagar</button></li>
             <li><button onclick="nav('financeiro','receber')"><i class="fas fa-hand-holding-usd"></i>Contas a Receber</button></li>
             <li><button onclick="nav('financeiro','fluxo')"><i class="fas fa-chart-line"></i>Fluxo de Caixa</button></li>
+            <li><button onclick="nav('financeiro','funcionarios')"><i class="fas fa-users"></i>Funcionários</button></li>
           </ul>
         </div>
       </li>
@@ -1527,8 +1528,15 @@ async function salvarCliente(id) {
     // Tecido
     if (data.tecido_valor > 0) custos.push({ label: 'Tecido', val: data.tecido_valor });
 
-    // Costura (total de todas as costureiras)
-    if (data.costura_total > 0) custos.push({ label: 'Costura', val: data.costura_total });
+    // Costura — uma entrada por costureira para rastreamento individual
+    const nCostureiras = parseInt(data.costura_qtd)||0;
+    for (let ci = 1; ci <= nCostureiras; ci++) {
+      const nomeCost = dinamicos[`costura_${ci}`] || `Costureira ${ci}`;
+      const qCost    = parseFloat(dinamicos[`costura_qtd_${ci}`])||0;
+      const vCost    = parseFloat(dinamicos[`costura_val_${ci}`])||0;
+      const totCost  = qCost * vCost;
+      if (totCost > 0) custos.push({ label: `Costura — ${nomeCost}`, val: totCost, fornecedor: nomeCost });
+    }
 
     // Aviamentos (soma de todas as peças)
     let totalAviamentos = 0;
@@ -1575,7 +1583,7 @@ async function salvarCliente(id) {
     for (const c of custos) {
       await insert('contas_pagar', {
         descricao:  `${c.label} — ${desc}`,
-        fornecedor: 'Benetextil',
+        fornecedor: c.fornecedor || 'Benetextil',
         valor:      c.val,
         vencimento: venc,
         status:     'pendente',
@@ -2936,13 +2944,130 @@ async function salvarKardex() {
 // FINANCEIRO
 // ═══════════════════════════════════════════════════════
 async function renderFinanceiro(sub='pagar') {
-  document.getElementById('pageTitle').textContent = sub==='pagar'?'Contas a Pagar':sub==='receber'?'Contas a Receber':'Fluxo de Caixa';
+  document.getElementById('pageTitle').textContent = sub==='pagar'?'Contas a Pagar':sub==='receber'?'Contas a Receber':sub==='funcionarios'?'Funcionários':'Fluxo de Caixa';
   try {
     const tabs = `<ul class="nav nav-pills mb-4 gap-1">
       <li class="nav-item"><button class="nav-link ${sub==='pagar'?'active':''}" onclick="renderFinanceiro('pagar')"><i class="fas fa-file-invoice-dollar me-1"></i>A Pagar</button></li>
       <li class="nav-item"><button class="nav-link ${sub==='receber'?'active':''}" onclick="renderFinanceiro('receber')"><i class="fas fa-hand-holding-usd me-1"></i>A Receber</button></li>
       <li class="nav-item"><button class="nav-link ${sub==='fluxo'?'active':''}" onclick="renderFinanceiro('fluxo')"><i class="fas fa-chart-line me-1"></i>Fluxo</button></li>
+      <li class="nav-item"><button class="nav-link ${sub==='funcionarios'?'active':''}" onclick="renderFinanceiro('funcionarios')"><i class="fas fa-users me-1"></i>Funcionários</button></li>
     </ul>`;
+
+    if (sub==='funcionarios') {
+      const hoje = new Date();
+      const mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
+      const [anoSel, mesSel] = (window._funcMes || mesAtual).split('-').map(Number);
+      const mesFiltro = window._funcMes || mesAtual;
+
+      const contasPagar = await getAll('contas_pagar');
+      // Entradas de costura do mês selecionado
+      const entradas = contasPagar.filter(c =>
+        c.descricao && c.descricao.startsWith('Costura —') &&
+        c.vencimento && c.vencimento.startsWith(mesFiltro)
+      );
+
+      // Agrupar por fornecedor (nome da costureira)
+      const por_func = {};
+      entradas.forEach(c => {
+        const nome = c.fornecedor || 'Sem nome';
+        if (!por_func[nome]) por_func[nome] = { pendente: 0, pago: 0, itens: [] };
+        const val = parseFloat(c.valor)||0;
+        por_func[nome][c.status==='pago'?'pago':'pendente'] += val;
+        por_func[nome].itens.push(c);
+      });
+
+      const nomes = Object.keys(por_func).sort();
+      const totalPendente = nomes.reduce((s,n)=>s+por_func[n].pendente,0);
+      const totalPago     = nomes.reduce((s,n)=>s+por_func[n].pago,0);
+
+      // Seletor de mês (últimos 12 meses)
+      const meses = [];
+      for (let i=0;i<12;i++) { const d=new Date(hoje.getFullYear(),hoje.getMonth()-i,1); meses.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`); }
+      const nomeMes = new Date(anoSel,mesSel-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+
+      document.getElementById('pageContent').innerHTML = tabs + `
+      <div class="d-flex align-items-center gap-3 mb-4 flex-wrap">
+        <h5 class="mb-0"><i class="fas fa-users me-2 text-primary"></i>Folha de Pagamento</h5>
+        <select class="form-select form-select-sm" style="max-width:180px" onchange="window._funcMes=this.value;renderFinanceiro('funcionarios')">
+          ${meses.map(m=>`<option value="${m}" ${m===mesFiltro?'selected':''}>${new Date(m+'-02').toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}</option>`).join('')}
+        </select>
+        <span class="text-muted small">Referência: <strong>${nomeMes}</strong></span>
+      </div>
+
+      <div class="row g-3 mb-4">
+        <div class="col-sm-4"><div class="card text-center p-3 border-danger">
+          <div class="text-danger mb-1"><i class="fas fa-clock fa-2x"></i></div>
+          <div class="fs-5 fw-bold text-danger">${fmtMoney(totalPendente)}</div>
+          <small class="text-muted">A Pagar este mês</small>
+        </div></div>
+        <div class="col-sm-4"><div class="card text-center p-3 border-success">
+          <div class="text-success mb-1"><i class="fas fa-check-circle fa-2x"></i></div>
+          <div class="fs-5 fw-bold text-success">${fmtMoney(totalPago)}</div>
+          <small class="text-muted">Já Pago este mês</small>
+        </div></div>
+        <div class="col-sm-4"><div class="card text-center p-3">
+          <div class="text-primary mb-1"><i class="fas fa-users fa-2x"></i></div>
+          <div class="fs-5 fw-bold">${nomes.length}</div>
+          <small class="text-muted">Funcionária(s)</small>
+        </div></div>
+      </div>
+
+      ${nomes.length === 0 ? `<div class="alert alert-info">Nenhum lançamento de costura encontrado para este mês. Os lançamentos são criados automaticamente ao salvar pedidos de uniforme.</div>` :
+        nomes.map(nome => {
+          const f = por_func[nome];
+          const total = f.pendente + f.pago;
+          const pct = total > 0 ? Math.round((f.pago/total)*100) : 0;
+          return `
+          <div class="card mb-3">
+            <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+              <div class="d-flex align-items-center gap-2">
+                <div style="width:36px;height:36px;border-radius:50%;background:#4361ee22;display:flex;align-items:center;justify-content:center">
+                  <i class="fas fa-user text-primary"></i>
+                </div>
+                <div>
+                  <div class="fw-bold">${escHtml(nome)}</div>
+                  <small class="text-muted">${f.itens.length} pedido(s) no mês</small>
+                </div>
+              </div>
+              <div class="text-end">
+                <div class="fw-bold fs-5 ${f.pendente>0?'text-danger':'text-success'}">${fmtMoney(f.pendente > 0 ? f.pendente : f.pago)}</div>
+                <small class="${f.pendente>0?'text-danger':'text-success'}">${f.pendente>0?'A pagar':'Pago'}</small>
+              </div>
+            </div>
+            <div class="card-body pt-2 pb-2">
+              <div class="d-flex align-items-center gap-2 mb-2">
+                <div class="progress flex-grow-1" style="height:8px">
+                  <div class="progress-bar bg-success" style="width:${pct}%"></div>
+                </div>
+                <small class="text-muted">${pct}% pago</small>
+              </div>
+              <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                  <thead><tr><th>Pedido</th><th class="text-end">Valor</th><th class="text-center">Status</th><th class="text-center no-print">Ação</th></tr></thead>
+                  <tbody>
+                  ${f.itens.map(it=>`<tr>
+                    <td><small>${escHtml((it.descricao||'').replace(/^Costura — [^—]+ — /,''))}</small></td>
+                    <td class="text-end fw-semibold">${fmtMoney(it.valor)}</td>
+                    <td class="text-center"><span class="badge ${it.status==='pago'?'bg-success':'bg-warning text-dark'}">${it.status==='pago'?'Pago':'Pendente'}</span></td>
+                    <td class="text-center no-print">
+                      ${it.status!=='pago'?`<button class="btn btn-xs btn-success btn-sm py-0 px-2" onclick="baixarFuncionario(${it.id})"><i class="fas fa-check me-1"></i>Pagar</button>`
+                      :`<span class="text-success"><i class="fas fa-check-double"></i></span>`}
+                    </td>
+                  </tr>`).join('')}
+                  </tbody>
+                  <tfoot><tr class="table-light">
+                    <td><strong>Total</strong></td>
+                    <td class="text-end fw-bold">${fmtMoney(total)}</td>
+                    <td colspan="2"></td>
+                  </tr></tfoot>
+                </table>
+              </div>
+            </div>
+          </div>`;
+        }).join('')
+      }`;
+      return;
+    }
 
     if (sub==='fluxo') {
       const receber = await getAll('contas_receber');
@@ -3149,6 +3274,13 @@ async function salvarConta(tipo) {
     closeModal();
     renderFinanceiro(tipo);
   } catch(e) { toast(e.message,'danger'); }
+}
+
+async function baixarFuncionario(id) {
+  if (!confirm('Confirmar pagamento desta costureira?')) return;
+  await update('contas_pagar', id, {status:'pago'});
+  toast('Pagamento registrado!'); Cache.clear('contas_pagar');
+  renderFinanceiro('funcionarios');
 }
 
 async function baixarConta(sheet, id, status) {
