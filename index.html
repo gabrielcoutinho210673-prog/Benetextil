@@ -1865,18 +1865,12 @@ function calcTotalSublimacao() {
   const subEl = document.getElementById('subTotalMetro');
   if (subEl) subEl.textContent = totalMetro.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 
-  // Custo de compra do tecido: metros comprados × valor/m², ou total digitado direto
+  // Custo de compra do tecido: sempre metros × valor/m²
   const compraMetros = parseFloat(document.getElementById('compra_tecido_metros')?.value)||0;
   const compraValorM = parseFloat(document.getElementById('compra_tecido_valor_metro')?.value)||0;
-  const compraCalc = compraMetros * compraValorM;
-  const compraDireto = parseFloat(document.getElementById('compra_tecido_total')?.value)||0;
-  // Se digitou total direto, usa ele; senão usa o calculado
-  const custoTecidoTotal = compraDireto > 0 ? compraDireto : compraCalc;
-  // Atualiza campo total quando calculado
-  if (compraCalc > 0 && compraDireto === 0) {
-    const elT = document.getElementById('compra_tecido_total');
-    if (elT && !elT._manual) elT.value = compraCalc.toFixed(2);
-  }
+  const custoTecidoTotal = compraMetros * compraValorM;
+  const elTotal = document.getElementById('compra_tecido_total');
+  if (elTotal) elTotal.value = custoTecidoTotal > 0 ? custoTecidoTotal.toFixed(2) : '';
   const subCustoEl = document.getElementById('subCustoTecido');
   if (subCustoEl) subCustoEl.textContent = custoTecidoTotal.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 
