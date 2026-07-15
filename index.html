@@ -1013,6 +1013,7 @@ function formCliente(c={}) {
           <div class="col-md-3"><label class="form-label">Tamanho(s)</label><input class="form-control" id="cTamanhos${i}" placeholder="P, M, G, GG" value="${v(i===1?'tamanhos':`peca${i}_tamanhos`)}"></div>
           <div class="col-md-3"><label class="form-label">Cor(s)</label><input class="form-control" id="cCores${i}" value="${v(i===1?'cores':`peca${i}_cores`)}"></div>
           <div class="col-md-3"><label class="form-label">Tecido</label><input class="form-control" id="cTecido${i}" value="${v(i===1?'tecido':`peca${i}_tecido`)}"></div>
+          <div class="col-md-2"><label class="form-label">Metros / Qtd Tecido</label><div class="input-group"><input type="number" class="form-control" id="cTecidoQtd${i}" step="0.01" min="0" placeholder="0,00" value="${v(i===1?'tecido_qtd':`peca${i}_tecido_qtd`)}"><span class="input-group-text">m</span></div></div>
           <div class="col-md-2"><label class="form-label">Valor Gasto no Tecido (R$)</label><div class="input-group"><span class="input-group-text">R$</span><input type="number" class="form-control" id="cTecidoValor${i}" step="0.01" min="0" value="${v(i===1?'tecido_valor':`peca${i}_tecido_valor`)}" oninput="calcResumo()"></div></div>
           <div class="col-md-3"><label class="form-label">Estampa / Bordado</label><input class="form-control" id="cEstampa${i}" value="${v(i===1?'estampa':`peca${i}_estampa`)}"></div>
           <div class="col-md-3"><label class="form-label">Observações</label><input class="form-control" id="cObsServico${i}" value="${v(i===1?'obs_servico':`peca${i}_obs`)}"></div>
@@ -1412,6 +1413,7 @@ async function salvarCliente(id) {
     tamanhos:       document.getElementById('cTamanhos1').value,
     cores:          document.getElementById('cCores1').value,
     tecido:         document.getElementById('cTecido1').value,
+    tecido_qtd:     parseFloat(document.getElementById('cTecidoQtd1')?.value)||0,
     tecido_valor:   parseFloat(document.getElementById('cTecidoValor1').value)||0,
     estampa:        document.getElementById('cEstampa1').value,
     estampa_valor:  parseFloat(document.getElementById('cEstampaValor1')?.value)||0,
@@ -1422,6 +1424,7 @@ async function salvarCliente(id) {
     peca2_tamanhos: document.getElementById('cTamanhos2').value,
     peca2_cores:    document.getElementById('cCores2').value,
     peca2_tecido:        document.getElementById('cTecido2').value,
+    peca2_tecido_qtd:    parseFloat(document.getElementById('cTecidoQtd2')?.value)||0,
     peca2_tecido_valor:  parseFloat(document.getElementById('cTecidoValor2').value)||0,
     peca2_estampa:        document.getElementById('cEstampa2').value,
     peca2_estampa_valor:  parseFloat(document.getElementById('cEstampaValor2')?.value)||0,
@@ -1432,6 +1435,7 @@ async function salvarCliente(id) {
     peca3_tamanhos: document.getElementById('cTamanhos3').value,
     peca3_cores:    document.getElementById('cCores3').value,
     peca3_tecido:        document.getElementById('cTecido3').value,
+    peca3_tecido_qtd:    parseFloat(document.getElementById('cTecidoQtd3')?.value)||0,
     peca3_tecido_valor:  parseFloat(document.getElementById('cTecidoValor3').value)||0,
     peca3_estampa:        document.getElementById('cEstampa3').value,
     peca3_estampa_valor:  parseFloat(document.getElementById('cEstampaValor3')?.value)||0,
@@ -1442,6 +1446,7 @@ async function salvarCliente(id) {
     peca4_tamanhos: document.getElementById('cTamanhos4').value,
     peca4_cores:    document.getElementById('cCores4').value,
     peca4_tecido:        document.getElementById('cTecido4').value,
+    peca4_tecido_qtd:    parseFloat(document.getElementById('cTecidoQtd4')?.value)||0,
     peca4_tecido_valor:  parseFloat(document.getElementById('cTecidoValor4').value)||0,
     peca4_estampa:        document.getElementById('cEstampa4').value,
     peca4_estampa_valor:  parseFloat(document.getElementById('cEstampaValor4')?.value)||0,
@@ -1452,6 +1457,7 @@ async function salvarCliente(id) {
     peca5_tamanhos: document.getElementById('cTamanhos5').value,
     peca5_cores:    document.getElementById('cCores5').value,
     peca5_tecido:        document.getElementById('cTecido5').value,
+    peca5_tecido_qtd:    parseFloat(document.getElementById('cTecidoQtd5')?.value)||0,
     peca5_tecido_valor:  parseFloat(document.getElementById('cTecidoValor5').value)||0,
     peca5_estampa:        document.getElementById('cEstampa5').value,
     peca5_estampa_valor:  parseFloat(document.getElementById('cEstampaValor5')?.value)||0,
