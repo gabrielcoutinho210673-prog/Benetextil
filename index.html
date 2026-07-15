@@ -543,22 +543,34 @@ async function renderDashboard() {
       chartData = apiDemo_chart();
       recentSales = [...DemoData.vendas].reverse().slice(0,10);
     } else {
-      const [vendas, pedidos, produtos] = await Promise.all([
-        getAll('vendas'), getAll('clientes'), getAll('produtos')
+      const [vendas, pedidos, produtos, contasPagar] = await Promise.all([
+        getAll('vendas'), getAll('clientes'), getAll('produtos'), getAll('contas_pagar')
       ]);
       const hoje = localDateStr();
       const vendasHoje = vendas.filter(v => v.status==='fechada' && v.data===hoje);
       stats = { vendasHoje: vendasHoje.reduce((s,v)=>s+(v.total||0),0), qtdVendas: vendasHoje.length, totalProdutos: produtos.length, totalClientes: pedidos.length };
-      const labels=[]; const values=[];
-      for(let i=13;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const ds=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;labels.push(d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}));values.push(vendas.filter(v=>v.status==='fechada'&&v.data===ds).reduce((s,v)=>s+(v.total||0),0));}
-      chartData = {labels, values};
+
+      // Gráfico: faturamento mensal dos últimos 12 meses (Uniformes)
+      const labels=[]; const valuesReceita=[]; const valuesCusto=[];
+      for(let i=11;i>=0;i--){
+        const d=new Date(); d.setDate(1); d.setMonth(d.getMonth()-i);
+        const mes=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+        labels.push(d.toLocaleDateString('pt-BR',{month:'short',year:'2-digit'}));
+        valuesReceita.push(pedidos.filter(p=>p.data_pedido&&p.data_pedido.startsWith(mes)).reduce((s,p)=>s+(parseFloat(p.valor_total)||0),0));
+        valuesCusto.push(contasPagar.filter(c=>c.vencimento&&c.vencimento.startsWith(mes)).reduce((s,c)=>s+(parseFloat(c.valor)||0),0));
+      }
+      chartData = {labels, valuesReceita, valuesCusto};
       recentSales = pedidos.slice(0, 8);
 
-      // Alertas de prazo
+      // Alertas de prazo de entrega
       const hojeDate = new Date(); hojeDate.setHours(0,0,0,0);
       const em3dias = new Date(hojeDate); em3dias.setDate(em3dias.getDate()+3);
       window._alertasAtraso   = pedidos.filter(p => p.data_entrega && new Date(p.data_entrega+'T00:00:00') < hojeDate);
       window._alertasProximos = pedidos.filter(p => { if(!p.data_entrega) return false; const d=new Date(p.data_entrega+'T00:00:00'); return d>=hojeDate && d<=em3dias; });
+
+      // Alertas de contas a pagar vencendo
+      window._contasVencidas  = contasPagar.filter(c => c.status==='pendente' && c.vencimento && new Date(c.vencimento+'T00:00:00') < hojeDate);
+      window._contasVencendo  = contasPagar.filter(c => { if(c.status!=='pendente'||!c.vencimento) return false; const d=new Date(c.vencimento+'T00:00:00'); return d>=hojeDate && d<=em3dias; });
     }
 
     const payLabels = {dinheiro:'Dinheiro',cartao_credito:'Crédito',cartao_debito:'Débito',pix:'PIX',cheque:'Cheque',fiado:'Fiado'};
@@ -628,6 +640,35 @@ async function renderDashboard() {
             </div>
           </div>
         </div>`;
+      const contasVencidas = window._contasVencidas || [];
+      const contasVencendo = window._contasVencendo || [];
+      if (contasVencidas.length) {
+        const total = contasVencidas.reduce((s,c)=>s+(parseFloat(c.valor)||0),0);
+        alertHtml += `
+        <div class="alert alert-danger d-flex align-items-start gap-3 mb-3" style="border-left:5px solid #b91c1c;cursor:pointer" onclick="nav('financeiro','pagar')">
+          <i class="fas fa-file-invoice-dollar fa-lg mt-1 text-danger"></i>
+          <div>
+            <strong>💸 ${contasVencidas.length} conta(s) a pagar VENCIDA(S) — Total: ${fmtMoney(total)}</strong>
+            <div class="mt-1 d-flex flex-wrap gap-2">
+              ${contasVencidas.slice(0,5).map(c=>`<span class="badge bg-danger">${escHtml((c.descricao||'').slice(0,30))} — ${fmtDate(c.vencimento)}</span>`).join('')}
+              ${contasVencidas.length>5?`<span class="badge bg-secondary">+${contasVencidas.length-5} mais</span>`:''}
+            </div>
+          </div>
+        </div>`;
+      }
+      if (contasVencendo.length) {
+        const total = contasVencendo.reduce((s,c)=>s+(parseFloat(c.valor)||0),0);
+        alertHtml += `
+        <div class="alert alert-warning d-flex align-items-start gap-3 mb-3" style="border-left:5px solid #d97706;cursor:pointer" onclick="nav('financeiro','pagar')">
+          <i class="fas fa-exclamation-circle fa-lg mt-1 text-warning"></i>
+          <div>
+            <strong>⏰ ${contasVencendo.length} conta(s) vencendo nos próximos 3 dias — Total: ${fmtMoney(total)}</strong>
+            <div class="mt-1 d-flex flex-wrap gap-2">
+              ${contasVencendo.map(c=>`<span class="badge bg-warning text-dark">${escHtml((c.descricao||'').slice(0,30))} — ${fmtDate(c.vencimento)}</span>`).join('')}
+            </div>
+          </div>
+        </div>`;
+      }
       return alertHtml;
     })()}
 
@@ -663,7 +704,7 @@ async function renderDashboard() {
       </div>
       <div class="col-lg-6">
         <div class="card h-100">
-          <div class="card-header d-flex align-items-center gap-2"><i class="fas fa-chart-line text-primary"></i><h6>Evolução — Últimos 14 dias</h6></div>
+          <div class="card-header d-flex align-items-center gap-2"><i class="fas fa-chart-bar text-primary"></i><h6>Faturamento vs Custos — Últimos 12 meses</h6></div>
           <div class="card-body" style="position:relative;min-height:280px"><canvas id="salesChart"></canvas></div>
         </div>
       </div>
@@ -674,12 +715,16 @@ async function renderDashboard() {
     const ctx = document.getElementById('salesChart');
     if (ctx && chartData.labels) {
       chartInstance = new Chart(ctx, {
-        type:'line',
-        data:{ labels:chartData.labels, datasets:[{label:'Vendas (R$)',data:chartData.values,
-          borderColor:'#4361ee',backgroundColor:'rgba(67,97,238,.08)',borderWidth:2.5,
-          pointBackgroundColor:'#4361ee',pointRadius:4,tension:.4,fill:true}]},
-        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmtMoney(c.raw)}}},
-          scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'rgba(0,0,0,.04)'},ticks:{font:{size:11},callback:v=>'R$'+v.toLocaleString('pt-BR')}}}}
+        type:'bar',
+        data:{ labels:chartData.labels, datasets:[
+          {label:'Faturamento',data:chartData.valuesReceita,backgroundColor:'rgba(67,97,238,.75)',borderRadius:4},
+          {label:'Custos',data:chartData.valuesCusto,backgroundColor:'rgba(239,68,68,.65)',borderRadius:4}
+        ]},
+        options:{responsive:true,maintainAspectRatio:false,
+          plugins:{legend:{display:true,position:'top',labels:{font:{size:11},boxWidth:12}},
+            tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${fmtMoney(c.raw)}`}}},
+          scales:{x:{grid:{display:false},ticks:{font:{size:10}}},
+            y:{grid:{color:'rgba(0,0,0,.04)'},ticks:{font:{size:11},callback:v=>'R$'+v.toLocaleString('pt-BR')}}}}
       });
     }
   } catch(e) { document.getElementById('pageContent').innerHTML = `<div class="alert alert-danger">Erro: ${escHtml(e.message)}</div>`; }
@@ -3122,12 +3167,13 @@ async function delConta(sheet, id) {
 // ═══════════════════════════════════════════════════════
 async function renderRelatorios() {
   const tipos = [
-    {k:'vendas',label:'Vendas'},
+    {k:'lucro_pedidos',label:'Lucro por Pedido'},
+    {k:'vendas',label:'Vendas PDV'},
     {k:'clientes',label:'Clientes'},
     {k:'produtos',label:'Produtos'},
     {k:'estoque',label:'Estoque'}
   ];
-  let tipoAtual = 'vendas';
+  let tipoAtual = 'lucro_pedidos';
 
   async function render(tipo) {
     tipoAtual = tipo;
@@ -3135,6 +3181,54 @@ async function renderRelatorios() {
     if (cont) cont.innerHTML = loading();
 
     let dados = [], colunas = [];
+
+    if (tipo==='lucro_pedidos') {
+      const [pedidos, contasPagar] = await Promise.all([getAll('clientes'), getAll('contas_pagar')]);
+      colunas = ['Cliente','Peça','Data','Receita','Custo','Lucro','Margem'];
+      dados = pedidos.map(p => {
+        const desc = `${p.tipo_peca||'Uniforme'} — ${p.nome}`;
+        const custo = contasPagar
+          .filter(c => (c.descricao||'').includes(`— ${desc}`))
+          .reduce((s,c) => s+(parseFloat(c.valor)||0), 0);
+        const receita = parseFloat(p.valor_total)||0;
+        const lucro = receita - custo;
+        const margem = receita > 0 ? ((lucro/receita)*100).toFixed(1)+'%' : '—';
+        return { _lucro: lucro, _receita: receita,
+          Cliente: p.nome, Peça: p.tipo_peca||'—', Data: fmtDate(p.data_pedido),
+          Receita: fmtMoney(receita), Custo: fmtMoney(custo),
+          Lucro: (lucro>=0?'+':'')+fmtMoney(lucro), Margem: margem,
+          _cor: lucro < 0 ? 'table-danger' : lucro === 0 ? '' : ''
+        };
+      }).sort((a,b) => b._receita - a._receita);
+
+      const totReceita = dados.reduce((s,r)=>s+r._receita,0);
+      const totCusto   = dados.reduce((s,r)=>s+(r._receita-(r._lucro+r._receita-r._receita)),0);
+      const totLucro   = dados.reduce((s,r)=>s+r._lucro,0);
+      const totMargem  = totReceita > 0 ? ((totLucro/totReceita)*100).toFixed(1)+'%' : '—';
+
+      if (cont) cont.innerHTML = `
+        <div class="row g-3 mb-3">
+          <div class="col-sm-4"><div class="stat-card blue p-3 rounded"><div class="stat-label">Total Faturado</div><div class="stat-value fs-5">${fmtMoney(totReceita)}</div></div></div>
+          <div class="col-sm-4"><div class="stat-card red p-3 rounded"><div class="stat-label">Total Custos</div><div class="stat-value fs-5">${fmtMoney(totReceita-totLucro)}</div></div></div>
+          <div class="col-sm-4"><div class="stat-card green p-3 rounded"><div class="stat-label">Lucro Total</div><div class="stat-value fs-5">${fmtMoney(totLucro)} <small class="fs-6 opacity-75">(${totMargem})</small></div></div></div>
+        </div>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <strong>${dados.length} pedidos</strong>
+          <button class="btn btn-outline-secondary btn-sm no-print" onclick="window.print()"><i class="fas fa-print me-1"></i>Imprimir</button>
+        </div>
+        <div class="card"><div class="card-body p-0"><div class="table-responsive">
+          <table class="table mb-0">
+            <thead><tr>${colunas.map(c=>`<th class="ps-3">${c}</th>`).join('')}</tr></thead>
+            <tbody>
+            ${dados.length ? dados.map(row=>`<tr class="${row._cor||''}">
+              ${colunas.map((c,i)=>`<td class="${i===0?'ps-3 fw-semibold':''}${c==='Lucro'?(row._lucro<0?' text-danger':' text-success'):''}">${escHtml(String(row[c]??'—'))}</td>`).join('')}
+            </tr>`).join('') : emptyState('chart-bar','Nenhum pedido encontrado')}
+            </tbody>
+          </table>
+        </div></div></div>`;
+      return;
+    }
+
     if (tipo==='vendas') {
       dados = (await getAll('vendas')).filter(v=>v.status==='fechada');
       colunas = ['Pedido','Cliente','Data','Pagamento','Total','Status'];
