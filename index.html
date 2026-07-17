@@ -2991,9 +2991,9 @@ async function renderFinanceiro(sub='pagar') {
       const mesFiltro = window._funcMes || mesAtual;
 
       const contasPagar = await getAll('contas_pagar');
-      // Entradas de costura do mês selecionado
+      // Entradas de funcionários: costura + mão de obra (fornecedor diferente de Benetextil)
       const entradas = contasPagar.filter(c =>
-        c.descricao && c.descricao.startsWith('Costura —') &&
+        c.fornecedor && c.fornecedor !== 'Benetextil' &&
         c.vencimento && c.vencimento.startsWith(mesFiltro)
       );
 
