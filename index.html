@@ -1018,8 +1018,6 @@ function formCliente(c={}) {
           <div class="col-md-3"><label class="form-label">Estampa / Bordado</label><input class="form-control" id="cEstampa${i}" value="${v(i===1?'estampa':`peca${i}_estampa`)}"></div>
           <div class="col-md-3"><label class="form-label">Observações</label><input class="form-control" id="cObsServico${i}" value="${v(i===1?'obs_servico':`peca${i}_obs`)}"></div>
           <div class="col-md-2"><label class="form-label">Valor de Venda/Un (R$)</label><div class="input-group"><span class="input-group-text">R$</span><input type="number" class="form-control" id="cVendaValor${i}" step="0.01" min="0" value="${v(i===1?'venda_valor':`peca${i}_venda_valor`)}" oninput="calcResumo()" placeholder="0,00"></div></div>
-          <div class="col-md-2"><label class="form-label">Qtd Peças p/ Corte <span class="badge" style="background:#db2777;font-size:0.65rem">Claudia</span></label><input type="number" class="form-control" id="cCorteQtd${i}" min="0" step="1" value="${v(i===1?'corte_qtd':`peca${i}_corte_qtd`)}" oninput="calcResumo()"></div>
-          <div class="col-md-2"><label class="form-label">Valor do Corte/Un (R$) <span class="badge" style="background:#db2777;font-size:0.65rem">Claudia</span></label><div class="input-group"><span class="input-group-text">R$</span><input type="number" class="form-control" id="cCorteValor${i}" step="0.01" min="0" value="${v(i===1?'corte_valor':`peca${i}_corte_valor`)}" oninput="calcResumo()"></div></div>
           <div class="col-12 mt-1">
             <div style="background:#f8f9fa;border:1px solid #dee2e6;border-radius:8px;padding:10px">
               <div class="fw-semibold mb-2" style="font-size:0.83rem;color:#4361ee"><i class="fas fa-tags me-1"></i>AVIAMENTOS DA PEÇA ${i}</div>
@@ -1129,20 +1127,29 @@ function formCliente(c={}) {
       </div>
       <div id="bordadoCampos" class="row g-2"></div>
     </div>
-    <div class="col-md-4">
-      <label class="form-label fw-semibold">BORDADO — Qtd de peças</label>
+    <div class="col-md-2"><label class="form-label fw-semibold">BORDADO — Qtd</label>
       <div class="input-group"><input type="number" class="form-control" id="bordadoPecasQtd" min="0" step="1" placeholder="0" value="${v('bordado_pecas_qtd')}" oninput="calcClaudiaTotal()">
       <span class="input-group-text">un</span></div>
     </div>
-    <div class="col-md-4">
-      <label class="form-label fw-semibold">BORDADO — Valor/peça (R$)</label>
+    <div class="col-md-2"><label class="form-label fw-semibold">BORDADO — Valor/un (R$)</label>
       <div class="input-group"><span class="input-group-text">R$</span>
       <input type="number" class="form-control" id="bordadoPecasVal" min="0" step="0.01" placeholder="0,00" value="${v('bordado_pecas_val')}" oninput="calcClaudiaTotal()"></div>
     </div>
-    <div class="col-md-4">
-      <label class="form-label fw-semibold">BORDADO — Total (R$)</label>
+    <div class="col-md-2"><label class="form-label fw-semibold">BORDADO — Total</label>
       <div class="input-group"><span class="input-group-text">R$</span>
       <input type="number" class="form-control" id="bordadoPecasTotal" readonly style="background:#fff0f7" value="${((v('bordado_pecas_qtd')||0)*(v('bordado_pecas_val')||0)).toFixed(2)}"></div>
+    </div>
+    <div class="col-md-2"><label class="form-label fw-semibold">CORTE — Qtd</label>
+      <div class="input-group"><input type="number" class="form-control" id="corteClaudiaQtd" min="0" step="1" placeholder="0" value="${v('corte_qtd')}" oninput="calcClaudiaTotal()">
+      <span class="input-group-text">un</span></div>
+    </div>
+    <div class="col-md-2"><label class="form-label fw-semibold">CORTE — Valor/un (R$)</label>
+      <div class="input-group"><span class="input-group-text">R$</span>
+      <input type="number" class="form-control" id="corteClaudiaVal" min="0" step="0.01" placeholder="0,00" value="${v('corte_valor')}" oninput="calcClaudiaTotal()"></div>
+    </div>
+    <div class="col-md-2"><label class="form-label fw-semibold">CORTE — Total</label>
+      <div class="input-group"><span class="input-group-text">R$</span>
+      <input type="number" class="form-control" id="corteClaudiaTotal" readonly style="background:#fff0f7" value="${((v('corte_qtd')||0)*(v('corte_valor')||0)).toFixed(2)}"></div>
     </div>
 
     <div class="col-12"><label class="form-label fw-semibold">COSTURA — Quantas costureiras?</label>
@@ -1255,7 +1262,13 @@ function calcClaudiaTotal() {
   const bordadoQ = parseFloat(document.getElementById('bordadoPecasQtd')?.value)||0;
   const bordadoV = parseFloat(document.getElementById('bordadoPecasVal')?.value)||0;
   const bordadoT = bordadoQ * bordadoV;
-  const el = document.getElementById('bordadoPecasTotal'); if(el) el.value = bordadoT.toFixed(2);
+  const el1 = document.getElementById('bordadoPecasTotal'); if(el1) el1.value = bordadoT.toFixed(2);
+
+  const corteQ = parseFloat(document.getElementById('corteClaudiaQtd')?.value)||0;
+  const corteV = parseFloat(document.getElementById('corteClaudiaVal')?.value)||0;
+  const corteT = corteQ * corteV;
+  const el2 = document.getElementById('corteClaudiaTotal'); if(el2) el2.value = corteT.toFixed(2);
+
   calcResumo();
 }
 
@@ -1395,10 +1408,7 @@ function calcResumo() {
       aviaSum += tot;
       setEl(`p${i}_avia_${a.key}_tot`, tot);
     });
-    const corteQtd = parseFloat(document.getElementById(`cCorteQtd${i}`)?.value)||0;
-    const corteUn  = parseFloat(document.getElementById(`cCorteValor${i}`)?.value)||0;
-    const corteTotal = corteQtd * corteUn;
-    const total = ativo ? (tec + estampaValor + aviaSum + costuraRateio + corteTotal) : 0;
+    const total = ativo ? (tec + estampaValor + aviaSum + costuraRateio) : 0;
     const qtd   = parseFloat(document.getElementById(`cQtd${i}`)?.value)||0;
     const unit  = (total > 0 && qtd > 0) ? total / qtd : 0;
     setEl(`custoPeca${i}_tecido`,   tec);
@@ -1562,16 +1572,8 @@ async function salvarCliente(id) {
     entrada:        parseFloat(document.getElementById('cEntrada').value)||0,
     forma_pagamento:document.getElementById('cFormaPag').value,
     obs_corte:        document.getElementById('cObsCorte')?.value||'',
-    corte_qtd:        parseFloat(document.getElementById('cCorteQtd1').value)||0,
-    corte_valor:      parseFloat(document.getElementById('cCorteValor1').value)||0,
-    peca2_corte_qtd:  parseFloat(document.getElementById('cCorteQtd2').value)||0,
-    peca2_corte_valor:parseFloat(document.getElementById('cCorteValor2').value)||0,
-    peca3_corte_qtd:  parseFloat(document.getElementById('cCorteQtd3').value)||0,
-    peca3_corte_valor:parseFloat(document.getElementById('cCorteValor3').value)||0,
-    peca4_corte_qtd:  parseFloat(document.getElementById('cCorteQtd4').value)||0,
-    peca4_corte_valor:parseFloat(document.getElementById('cCorteValor4').value)||0,
-    peca5_corte_qtd:  parseFloat(document.getElementById('cCorteQtd5').value)||0,
-    peca5_corte_valor:parseFloat(document.getElementById('cCorteValor5').value)||0,
+    corte_qtd:        parseFloat(document.getElementById('corteClaudiaQtd')?.value)||0,
+    corte_valor:      parseFloat(document.getElementById('corteClaudiaVal')?.value)||0,
     uber:           parseFloat(document.getElementById('cUber')?.value)||0,
     almoco:         parseFloat(document.getElementById('cAlmoco')?.value)||0,
     gasolina:       parseFloat(document.getElementById('cGasolina')?.value)||0,
@@ -1641,11 +1643,7 @@ async function salvarCliente(id) {
     if (totalAviamentos > 0) custos.push({ label: 'Aviamentos', val: totalAviamentos });
 
     // Corte (soma de todas as peças)
-    let totalCorte = 0;
-    const corteKeys = [['corte_qtd','corte_valor'],['peca2_corte_qtd','peca2_corte_valor'],
-                       ['peca3_corte_qtd','peca3_corte_valor'],['peca4_corte_qtd','peca4_corte_valor'],
-                       ['peca5_corte_qtd','peca5_corte_valor']];
-    corteKeys.forEach(([q,v]) => { totalCorte += (parseFloat(data[q])||0) * (parseFloat(data[v])||0); });
+    const totalCorte = (parseFloat(data.corte_qtd)||0) * (parseFloat(data.corte_valor)||0);
     if (totalCorte > 0) custos.push({ label: 'Corte', val: totalCorte, fornecedor: 'Claudia' });
 
     // SILK — Paulo
