@@ -2990,37 +2990,52 @@ async function renderFinanceiro(sub='pagar') {
       const [anoSel, mesSel] = (window._funcMes || mesAtual).split('-').map(Number);
       const mesFiltro = window._funcMes || mesAtual;
 
-      const contasPagar = await getAll('contas_pagar');
-      // Entradas de funcionários: fornecedor nomeado OU descrição de costura/mão de obra
-      const entradas = contasPagar.filter(c => {
-        if (!c.vencimento || !c.vencimento.startsWith(mesFiltro)) return false;
-        if (c.fornecedor && c.fornecedor !== 'Benetextil') return true;
-        const desc = (c.descricao||'').toLowerCase();
-        return desc.includes('costura') || desc.includes('anderson') || desc.includes('mão de obra');
-      });
+      const [contasPagar, sublimacoes] = await Promise.all([getAll('contas_pagar'), getAll('sublimacao')]);
 
-      // Extrair nome da costureira: usa fornecedor se não for 'Benetextil',
-      // senão tenta parsear do formato novo "Costura — NomeCostureira — Pedido"
+      // ── Costureiras: lidas do contas_pagar (lançadas ao salvar uniforme) ──
       const getNomeFuncionario = c => {
         if (c.fornecedor && c.fornecedor !== 'Benetextil') return c.fornecedor;
-        const desc = c.descricao || '';
-        // Costura novo formato: "Costura — NomeCostureira — Pedido"
-        const mCostura = desc.match(/^Costura — (.+?) — /);
-        if (mCostura) return mCostura[1];
-        // Anderson detectado pela descrição
-        if (desc.toLowerCase().includes('anderson')) return 'Anderson';
-        return 'Sem nome';
+        const m = (c.descricao||'').match(/^Costura — (.+?) — /);
+        return m ? m[1] : null;
       };
+      const entradasCostura = contasPagar.filter(c => {
+        if (!c.vencimento || !c.vencimento.startsWith(mesFiltro)) return false;
+        return getNomeFuncionario(c) !== null;
+      });
 
-      // Agrupar por nome da costureira
       const por_func = {};
-      entradas.forEach(c => {
+      entradasCostura.forEach(c => {
         const nome = getNomeFuncionario(c);
         if (!por_func[nome]) por_func[nome] = { pendente: 0, pago: 0, itens: [] };
         const val = parseFloat(c.valor)||0;
         por_func[nome][c.status==='pago'?'pago':'pendente'] += val;
         por_func[nome].itens.push(c);
       });
+
+      // ── Anderson: lido diretamente da tabela sublimacao ──
+      const sublimMes = sublimacoes.filter(s => {
+        const ref = s.data_pedido || s.data_entrega || '';
+        return ref.startsWith(mesFiltro) && (parseFloat(s.mao_obra_anderson)||0) > 0;
+      });
+      if (sublimMes.length > 0) {
+        if (!por_func['Anderson']) por_func['Anderson'] = { pendente: 0, pago: 0, itens: [] };
+        sublimMes.forEach(s => {
+          const val = parseFloat(s.mao_obra_anderson)||0;
+          // Verifica se já existe entrada paga no contas_pagar para este registro
+          const jaTemCP = contasPagar.find(c =>
+            c.fornecedor === 'Anderson' &&
+            (c.descricao||'').includes(s.descricao||s.id)
+          );
+          const status = jaTemCP ? jaTemCP.status : 'pendente';
+          const cpId = jaTemCP ? jaTemCP.id : null;
+          por_func['Anderson'][status==='pago'?'pago':'pendente'] += val;
+          por_func['Anderson'].itens.push({
+            id: cpId, _sublimId: s.id,
+            descricao: `Sublimação — ${s.descricao||s.nome_cliente||'Sem descrição'}`,
+            valor: val, status, vencimento: s.data_entrega || s.data_pedido
+          });
+        });
+      }
 
       const nomes = Object.keys(por_func).sort();
       const totalPendente = nomes.reduce((s,n)=>s+por_func[n].pendente,0);
