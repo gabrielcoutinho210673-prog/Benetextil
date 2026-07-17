@@ -1116,6 +1116,10 @@ function formCliente(c={}) {
       <input type="number" class="form-control" id="traveteTotal" readonly style="background:#f5f0ff" value="${((v('travete_qtd')||0)*(v('travete_val')||0)).toFixed(2)}"></div>
     </div>
 
+    <div class="col-12 mt-2"><div class="d-flex align-items-center gap-2 mb-1" style="border-bottom:2px solid #db2777;padding-bottom:4px">
+      <i class="fas fa-user-tie" style="color:#db2777"></i><strong style="color:#db2777">SERVIÇOS DA CLAUDIA</strong>
+      <small class="text-muted">(Bordado e Corte)</small></div></div>
+
     <div class="col-12"><label class="form-label fw-semibold">BORDADO — Quantos códigos?</label>
       <div class="d-flex align-items-center gap-2 mb-2">
         <select class="form-select form-select-sm" style="width:120px" id="bordadoQtd" onchange="updateDinamico('bordado','bordadoQtd','bordadoCampos','Código de Cor',5)">
@@ -1124,6 +1128,21 @@ function formCliente(c={}) {
         <small class="text-muted">Selecione a quantidade de códigos de BORDADO</small>
       </div>
       <div id="bordadoCampos" class="row g-2"></div>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label fw-semibold">BORDADO — Qtd de peças</label>
+      <div class="input-group"><input type="number" class="form-control" id="bordadoPecasQtd" min="0" step="1" placeholder="0" value="${v('bordado_pecas_qtd')}" oninput="calcClaudiaTotal()">
+      <span class="input-group-text">un</span></div>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label fw-semibold">BORDADO — Valor/peça (R$)</label>
+      <div class="input-group"><span class="input-group-text">R$</span>
+      <input type="number" class="form-control" id="bordadoPecasVal" min="0" step="0.01" placeholder="0,00" value="${v('bordado_pecas_val')}" oninput="calcClaudiaTotal()"></div>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label fw-semibold">BORDADO — Total (R$)</label>
+      <div class="input-group"><span class="input-group-text">R$</span>
+      <input type="number" class="form-control" id="bordadoPecasTotal" readonly style="background:#fff0f7" value="${((v('bordado_pecas_qtd')||0)*(v('bordado_pecas_val')||0)).toFixed(2)}"></div>
     </div>
 
     <div class="col-12"><label class="form-label fw-semibold">COSTURA — Quantas costureiras?</label>
@@ -1230,6 +1249,14 @@ function updateDinamico(prefixo, selectId, containerId, labelBase, max) {
       container.innerHTML += `<div class="col-md-3"><label class="form-label small">${labelBase} ${i}</label><input class="form-control form-control-sm" id="${prefixo}_${i}" placeholder="${labelBase} ${i}"></div>`;
     }
   }
+}
+
+function calcClaudiaTotal() {
+  const bordadoQ = parseFloat(document.getElementById('bordadoPecasQtd')?.value)||0;
+  const bordadoV = parseFloat(document.getElementById('bordadoPecasVal')?.value)||0;
+  const bordadoT = bordadoQ * bordadoV;
+  const el = document.getElementById('bordadoPecasTotal'); if(el) el.value = bordadoT.toFixed(2);
+  calcResumo();
 }
 
 function calcPauloTotal() {
@@ -1416,9 +1443,10 @@ function calcResumo() {
     const sv = parseFloat(document.getElementById(`silk_val_${s}`)?.value)||0;
     silkTotal += sq * sv;
   }
-  const caseadoTotal = (parseFloat(document.getElementById('caseadoQtd')?.value)||0) * (parseFloat(document.getElementById('caseadoVal')?.value)||0);
-  const traveteTotal = (parseFloat(document.getElementById('traveteQtd')?.value)||0) * (parseFloat(document.getElementById('traveteVal')?.value)||0);
-  custoTotal += silkTotal + caseadoTotal + traveteTotal + operacional;
+  const caseadoTotal  = (parseFloat(document.getElementById('caseadoQtd')?.value)||0)     * (parseFloat(document.getElementById('caseadoVal')?.value)||0);
+  const traveteTotal  = (parseFloat(document.getElementById('traveteQtd')?.value)||0)     * (parseFloat(document.getElementById('traveteVal')?.value)||0);
+  const bordadoCusto  = (parseFloat(document.getElementById('bordadoPecasQtd')?.value)||0) * (parseFloat(document.getElementById('bordadoPecasVal')?.value)||0);
+  custoTotal += silkTotal + caseadoTotal + traveteTotal + bordadoCusto + operacional;
 
   const lucro = valorTotal - custoTotal;
   const elC = document.getElementById('resumoCustoTotal');
@@ -1552,10 +1580,12 @@ async function salvarCliente(id) {
     silk_qtd:       silkQtd,
     bordado_qtd:    bordadoQtd,
     costura_qtd:    costuraQtd,
-    caseado_qtd:    parseFloat(document.getElementById('caseadoQtd')?.value)||0,
-    caseado_val:    parseFloat(document.getElementById('caseadoVal')?.value)||0,
-    travete_qtd:    parseFloat(document.getElementById('traveteQtd')?.value)||0,
-    travete_val:    parseFloat(document.getElementById('traveteVal')?.value)||0,
+    caseado_qtd:      parseFloat(document.getElementById('caseadoQtd')?.value)||0,
+    caseado_val:      parseFloat(document.getElementById('caseadoVal')?.value)||0,
+    travete_qtd:      parseFloat(document.getElementById('traveteQtd')?.value)||0,
+    travete_val:      parseFloat(document.getElementById('traveteVal')?.value)||0,
+    bordado_pecas_qtd:parseFloat(document.getElementById('bordadoPecasQtd')?.value)||0,
+    bordado_pecas_val:parseFloat(document.getElementById('bordadoPecasVal')?.value)||0,
     ...dinamicos,
     ativo: 1
   };
@@ -1616,12 +1646,16 @@ async function salvarCliente(id) {
                        ['peca3_corte_qtd','peca3_corte_valor'],['peca4_corte_qtd','peca4_corte_valor'],
                        ['peca5_corte_qtd','peca5_corte_valor']];
     corteKeys.forEach(([q,v]) => { totalCorte += (parseFloat(data[q])||0) * (parseFloat(data[v])||0); });
-    if (totalCorte > 0) custos.push({ label: 'Corte', val: totalCorte });
+    if (totalCorte > 0) custos.push({ label: 'Corte', val: totalCorte, fornecedor: 'Claudia' });
 
     // SILK — Paulo
     let totalSilk = 0;
     for (let s = 1; s <= 4; s++) totalSilk += (parseFloat(data[`silk_qtd_${s}`])||0) * (parseFloat(data[`silk_val_${s}`])||0);
     if (totalSilk > 0) custos.push({ label: 'SILK', val: totalSilk, fornecedor: 'Paulo' });
+
+    // Bordado — Claudia
+    const totalBordadoCusto = (parseFloat(data.bordado_pecas_qtd)||0) * (parseFloat(data.bordado_pecas_val)||0);
+    if (totalBordadoCusto > 0) custos.push({ label: 'Bordado', val: totalBordadoCusto, fornecedor: 'Claudia' });
 
     // Caseado — Paulo
     const totalCaseado = (parseFloat(data.caseado_qtd)||0) * (parseFloat(data.caseado_val)||0);
