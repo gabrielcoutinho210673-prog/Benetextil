@@ -1070,6 +1070,10 @@ function formCliente(c={}) {
     ${secTitle('industry','OBSERVAÇÃO DO SETOR')}
     <div class="col-12"><label class="form-label">Acabamento</label><textarea class="form-control" id="cObsAcabamento" rows="2">${v('obs_acabamento')}</textarea></div>
 
+    <div class="col-12 mt-1"><div class="d-flex align-items-center gap-2 mb-1" style="border-bottom:2px solid #7c3aed;padding-bottom:4px">
+      <i class="fas fa-user-tie" style="color:#7c3aed"></i><strong style="color:#7c3aed">SERVIÇOS DO PAULO</strong>
+      <small class="text-muted">(Silk, Caseado, Travete)</small></div></div>
+
     <div class="col-12"><label class="form-label fw-semibold">SILK — Quantas cores?</label>
       <div class="d-flex align-items-center gap-2 mb-2">
         <select class="form-select form-select-sm" style="width:120px" id="silkQtd" onchange="updateDinamico('silk','silkQtd','silkCampos','Código de Cor',4)">
@@ -1078,6 +1082,38 @@ function formCliente(c={}) {
         <small class="text-muted">Selecione a quantidade de cores de SILK</small>
       </div>
       <div id="silkCampos" class="row g-2"></div>
+    </div>
+
+    <div class="col-md-4">
+      <label class="form-label fw-semibold">CASEADO — Qtd de peças</label>
+      <div class="input-group"><input type="number" class="form-control" id="caseadoQtd" min="0" step="1" placeholder="0" value="${v('caseado_qtd')}" oninput="calcPauloTotal()">
+      <span class="input-group-text">un</span></div>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label fw-semibold">CASEADO — Valor/peça (R$)</label>
+      <div class="input-group"><span class="input-group-text">R$</span>
+      <input type="number" class="form-control" id="caseadoVal" min="0" step="0.01" placeholder="0,00" value="${v('caseado_val')}" oninput="calcPauloTotal()"></div>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label fw-semibold">CASEADO — Total (R$)</label>
+      <div class="input-group"><span class="input-group-text">R$</span>
+      <input type="number" class="form-control" id="caseadoTotal" readonly style="background:#f5f0ff" value="${((v('caseado_qtd')||0)*(v('caseado_val')||0)).toFixed(2)}"></div>
+    </div>
+
+    <div class="col-md-4">
+      <label class="form-label fw-semibold">TRAVETE — Qtd de peças</label>
+      <div class="input-group"><input type="number" class="form-control" id="traveteQtd" min="0" step="1" placeholder="0" value="${v('travete_qtd')}" oninput="calcPauloTotal()">
+      <span class="input-group-text">un</span></div>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label fw-semibold">TRAVETE — Valor/peça (R$)</label>
+      <div class="input-group"><span class="input-group-text">R$</span>
+      <input type="number" class="form-control" id="traveteVal" min="0" step="0.01" placeholder="0,00" value="${v('travete_val')}" oninput="calcPauloTotal()"></div>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label fw-semibold">TRAVETE — Total (R$)</label>
+      <div class="input-group"><span class="input-group-text">R$</span>
+      <input type="number" class="form-control" id="traveteTotal" readonly style="background:#f5f0ff" value="${((v('travete_qtd')||0)*(v('travete_val')||0)).toFixed(2)}"></div>
     </div>
 
     <div class="col-12"><label class="form-label fw-semibold">BORDADO — Quantos códigos?</label>
@@ -1194,6 +1230,20 @@ function updateDinamico(prefixo, selectId, containerId, labelBase, max) {
       container.innerHTML += `<div class="col-md-3"><label class="form-label small">${labelBase} ${i}</label><input class="form-control form-control-sm" id="${prefixo}_${i}" placeholder="${labelBase} ${i}"></div>`;
     }
   }
+}
+
+function calcPauloTotal() {
+  const caseadoQ = parseFloat(document.getElementById('caseadoQtd')?.value)||0;
+  const caseadoV = parseFloat(document.getElementById('caseadoVal')?.value)||0;
+  const caseadoT = caseadoQ * caseadoV;
+  const el1 = document.getElementById('caseadoTotal'); if(el1) el1.value = caseadoT.toFixed(2);
+
+  const traveteQ = parseFloat(document.getElementById('traveteQtd')?.value)||0;
+  const traveteV = parseFloat(document.getElementById('traveteVal')?.value)||0;
+  const traveteT = traveteQ * traveteV;
+  const el2 = document.getElementById('traveteTotal'); if(el2) el2.value = traveteT.toFixed(2);
+
+  calcResumo();
 }
 
 function calcSilkTotal() {
@@ -1366,7 +1416,9 @@ function calcResumo() {
     const sv = parseFloat(document.getElementById(`silk_val_${s}`)?.value)||0;
     silkTotal += sq * sv;
   }
-  custoTotal += silkTotal + operacional;
+  const caseadoTotal = (parseFloat(document.getElementById('caseadoQtd')?.value)||0) * (parseFloat(document.getElementById('caseadoVal')?.value)||0);
+  const traveteTotal = (parseFloat(document.getElementById('traveteQtd')?.value)||0) * (parseFloat(document.getElementById('traveteVal')?.value)||0);
+  custoTotal += silkTotal + caseadoTotal + traveteTotal + operacional;
 
   const lucro = valorTotal - custoTotal;
   const elC = document.getElementById('resumoCustoTotal');
@@ -1500,6 +1552,10 @@ async function salvarCliente(id) {
     silk_qtd:       silkQtd,
     bordado_qtd:    bordadoQtd,
     costura_qtd:    costuraQtd,
+    caseado_qtd:    parseFloat(document.getElementById('caseadoQtd')?.value)||0,
+    caseado_val:    parseFloat(document.getElementById('caseadoVal')?.value)||0,
+    travete_qtd:    parseFloat(document.getElementById('traveteQtd')?.value)||0,
+    travete_val:    parseFloat(document.getElementById('traveteVal')?.value)||0,
     ...dinamicos,
     ativo: 1
   };
@@ -1562,10 +1618,18 @@ async function salvarCliente(id) {
     corteKeys.forEach(([q,v]) => { totalCorte += (parseFloat(data[q])||0) * (parseFloat(data[v])||0); });
     if (totalCorte > 0) custos.push({ label: 'Corte', val: totalCorte });
 
-    // SILK (soma de todos os itens de silk)
+    // SILK — Paulo
     let totalSilk = 0;
     for (let s = 1; s <= 4; s++) totalSilk += (parseFloat(data[`silk_qtd_${s}`])||0) * (parseFloat(data[`silk_val_${s}`])||0);
-    if (totalSilk > 0) custos.push({ label: 'SILK', val: totalSilk });
+    if (totalSilk > 0) custos.push({ label: 'SILK', val: totalSilk, fornecedor: 'Paulo' });
+
+    // Caseado — Paulo
+    const totalCaseado = (parseFloat(data.caseado_qtd)||0) * (parseFloat(data.caseado_val)||0);
+    if (totalCaseado > 0) custos.push({ label: 'Caseado', val: totalCaseado, fornecedor: 'Paulo' });
+
+    // Travete — Paulo
+    const totalTravete = (parseFloat(data.travete_qtd)||0) * (parseFloat(data.travete_val)||0);
+    if (totalTravete > 0) custos.push({ label: 'Travete', val: totalTravete, fornecedor: 'Paulo' });
 
     // Custos operacionais (individualmente para rastreamento)
     if (data.uber          > 0) custos.push({ label: 'Uber',           val: data.uber });
