@@ -3001,16 +3001,21 @@ async function renderFinanceiro(sub='pagar') {
 
       // Extrair nome da costureira: usa fornecedor se não for 'Benetextil',
       // senão tenta parsear do formato novo "Costura — NomeCostureira — Pedido"
-      const getNomeCostureira = c => {
+      const getNomeFuncionario = c => {
         if (c.fornecedor && c.fornecedor !== 'Benetextil') return c.fornecedor;
-        const m = (c.descricao||'').match(/^Costura — (.+?) — /);
-        return m ? m[1] : (c.fornecedor || 'Sem nome');
+        const desc = c.descricao || '';
+        // Costura novo formato: "Costura — NomeCostureira — Pedido"
+        const mCostura = desc.match(/^Costura — (.+?) — /);
+        if (mCostura) return mCostura[1];
+        // Anderson detectado pela descrição
+        if (desc.toLowerCase().includes('anderson')) return 'Anderson';
+        return 'Sem nome';
       };
 
       // Agrupar por nome da costureira
       const por_func = {};
       entradas.forEach(c => {
-        const nome = getNomeCostureira(c);
+        const nome = getNomeFuncionario(c);
         if (!por_func[nome]) por_func[nome] = { pendente: 0, pago: 0, itens: [] };
         const val = parseFloat(c.valor)||0;
         por_func[nome][c.status==='pago'?'pago':'pendente'] += val;
