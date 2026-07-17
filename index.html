@@ -1937,18 +1937,18 @@ async function salvarSublimacao(id) {
 
         // Detalha cada custo separado
         const itens = [
-          { label: 'Uber',         val: data.uber },
-          { label: 'Almoço',       val: data.almoco },
-          { label: 'Gasolina',     val: data.gasolina },
-          { label: 'Estacionamento', val: data.estacionamento },
-          { label: 'Brim',         val: data.brim },
-          { label: 'Mão de obra Anderson', val: data.mao_obra_anderson },
+          { label: 'Uber',               val: data.uber,              fornecedor: 'Benetextil' },
+          { label: 'Almoço',             val: data.almoco,            fornecedor: 'Benetextil' },
+          { label: 'Gasolina',           val: data.gasolina,          fornecedor: 'Benetextil' },
+          { label: 'Estacionamento',     val: data.estacionamento,    fornecedor: 'Benetextil' },
+          { label: 'Brim',               val: data.brim,              fornecedor: 'Benetextil' },
+          { label: 'Mão de Obra Anderson', val: data.mao_obra_anderson, fornecedor: 'Anderson' },
         ].filter(i => i.val > 0);
 
         for (const item of itens) {
           await insert('contas_pagar', {
             descricao:  `Sublimação — ${item.label}: ${descricao}`,
-            fornecedor: 'Benetextil',
+            fornecedor: item.fornecedor,
             valor:      item.val,
             vencimento: hoje,
             status:     'pendente',
