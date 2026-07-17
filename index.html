@@ -2991,11 +2991,13 @@ async function renderFinanceiro(sub='pagar') {
       const mesFiltro = window._funcMes || mesAtual;
 
       const contasPagar = await getAll('contas_pagar');
-      // Entradas de funcionários: costura + mão de obra (fornecedor diferente de Benetextil)
-      const entradas = contasPagar.filter(c =>
-        c.fornecedor && c.fornecedor !== 'Benetextil' &&
-        c.vencimento && c.vencimento.startsWith(mesFiltro)
-      );
+      // Entradas de funcionários: fornecedor nomeado OU descrição de costura/mão de obra
+      const entradas = contasPagar.filter(c => {
+        if (!c.vencimento || !c.vencimento.startsWith(mesFiltro)) return false;
+        if (c.fornecedor && c.fornecedor !== 'Benetextil') return true;
+        const desc = (c.descricao||'').toLowerCase();
+        return desc.includes('costura') || desc.includes('anderson') || desc.includes('mão de obra');
+      });
 
       // Extrair nome da costureira: usa fornecedor se não for 'Benetextil',
       // senão tenta parsear do formato novo "Costura — NomeCostureira — Pedido"
