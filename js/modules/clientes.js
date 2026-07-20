@@ -1,5 +1,7 @@
 'use strict';
 let clienteSearch = '';
+let clienteFiltro = 'todos';
+let clienteMes    = '';
 
 const AVIAMENTOS_LIST = [
   {key:'botao',           label:'BOTÃO'},
@@ -22,15 +24,42 @@ const AVIAMENTOS_LIST = [
 async function renderClientes(search) {
   if (search !== undefined) clienteSearch = search;
   try {
-    let dados = await getAll('clientes');
-    if (clienteSearch) dados = dados.filter(c => (c.nome+' '+c.telefone+' '+c.tipo_peca).toLowerCase().includes(clienteSearch.toLowerCase()));
+    const todos = await getAll('clientes');
+
+    const mesesSet = new Set();
+    todos.forEach(c => { if (c.data_pedido) mesesSet.add(c.data_pedido.slice(0,7)); });
+    const meses = Array.from(mesesSet).sort().reverse();
+
+    let base = todos;
+    if (clienteSearch) base = base.filter(c => (c.nome+' '+c.telefone+' '+c.tipo_peca).toLowerCase().includes(clienteSearch.toLowerCase()));
+    if (clienteMes) base = base.filter(c => (c.data_pedido||'').startsWith(clienteMes));
+
+    const hoje = new Date(); hoje.setHours(0,0,0,0);
+    const isAtraso = c => c.data_entrega && new Date(c.data_entrega+'T00:00:00') < hoje;
+    const qtdAtraso = base.filter(isAtraso).length;
+    const qtdPrazo  = base.length - qtdAtraso;
+
+    let dados = base;
+    if (clienteFiltro === 'atraso') dados = dados.filter(isAtraso);
+    if (clienteFiltro === 'prazo')  dados = dados.filter(c => !isAtraso(c));
 
     document.getElementById('pageContent').innerHTML = `
+    <div class="row g-2 mb-3">
+      <div class="col-4"><div class="p-2 rounded text-center" style="background:#eef2ff;border:1px solid #4361ee"><div class="small text-muted">Total</div><strong class="text-primary">${base.length}</strong></div></div>
+      <div class="col-4"><div class="p-2 rounded text-center" style="background:#fee2e2;border:1px solid #dc2626"><div class="small text-muted">Em Atraso</div><strong class="text-danger">${qtdAtraso}</strong></div></div>
+      <div class="col-4"><div class="p-2 rounded text-center" style="background:#d1fae5;border:1px solid #10b981"><div class="small text-muted">No Prazo</div><strong class="text-success">${qtdPrazo}</strong></div></div>
+    </div>
     <div class="card">
       <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
-        <h6><i class="fas fa-list me-2"></i>${dados.length} pedido(s)</h6>
-        <div class="d-flex gap-2">
-          <div class="input-group input-group-sm" style="width:260px">
+        <div class="d-flex gap-1 flex-wrap">
+          ${['todos','atraso','prazo'].map(f=>`<button class="btn btn-sm ${clienteFiltro===f?'btn-primary':'btn-outline-secondary'}" onclick="clienteFiltro='${f}';renderClientes()">${f==='todos'?'Todos':f==='atraso'?'Em Atraso':'No Prazo'}</button>`).join('')}
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+          <select class="form-select form-select-sm" style="width:180px" onchange="clienteMes=this.value;renderClientes()">
+            <option value="">Todos os meses</option>
+            ${meses.map(m=>`<option value="${m}" ${clienteMes===m?'selected':''}>${new Date(m+'-02').toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}</option>`).join('')}
+          </select>
+          <div class="input-group input-group-sm" style="width:220px">
             <input type="text" class="form-control" placeholder="Buscar nome, peça..." value="${escHtml(clienteSearch)}"
               oninput="renderClientes(this.value)" id="clienteSearchInput">
             <button class="btn btn-outline-secondary" onclick="clienteSearch='';renderClientes('')"><i class="fas fa-times"></i></button>
@@ -50,21 +79,21 @@ async function renderClientes(search) {
             ${dados.length ? dados.map(c => {
               const saldo = (parseFloat(c.valor_total)||0) - (parseFloat(c.entrada)||0);
               const statusPgto = saldo <= 0 ? '<span class="badge bg-success">Pago</span>' : (parseFloat(c.entrada)>0 ? '<span class="badge bg-warning text-dark">Parcial</span>' : '<span class="badge bg-danger">Pendente</span>');
-              const vencEntrega = c.data_entrega && new Date(c.data_entrega) < new Date() ? 'text-danger fw-semibold' : '';
-              return `<tr>
+              const atrasado = isAtraso(c);
+              return `<tr class="${atrasado?'table-danger':''}">
                 <td class="ps-3"><strong>${escHtml(c.nome)}</strong><br><small class="text-muted">${escHtml(c.endereco||'')}</small></td>
                 <td>${escHtml(c.telefone||'—')}</td>
                 <td>${escHtml(c.tipo_peca||'—')}</td>
                 <td>${escHtml(c.quantidade||'—')}</td>
                 <td><small>${c.data_pedido?fmtDate(c.data_pedido):'—'}</small></td>
-                <td class="${vencEntrega}"><small>${c.data_entrega?fmtDate(c.data_entrega):'—'}</small></td>
+                <td><small class="${atrasado?'text-danger fw-bold':''}">${c.data_entrega?fmtDate(c.data_entrega):'—'}${atrasado?' ⚠️ Atrasado':''}</small></td>
                 <td class="fw-semibold">${c.valor_total?fmtMoney(c.valor_total):'—'}</td>
                 <td>${statusPgto}</td>
                 <td class="text-end pe-3">
                   <button class="btn btn-icon btn-outline-primary btn-sm" onclick='formCliente(${JSON.stringify(c)})'><i class="fas fa-edit"></i></button>
                   <button class="btn btn-icon btn-outline-danger btn-sm" onclick="delCliente(${c.id},'${escHtml(c.nome)}')"><i class="fas fa-trash"></i></button>
                 </td></tr>`;}).join('')
-            : emptyState('users','Nenhum pedido cadastrado')}
+            : emptyState('users','Nenhum pedido encontrado')}
             </tbody>
           </table>
         </div>
