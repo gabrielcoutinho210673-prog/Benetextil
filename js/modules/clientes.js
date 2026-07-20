@@ -632,7 +632,7 @@ async function salvarCliente(id) {
     endereco:       document.getElementById('cEnd').value,
     data_pedido:    document.getElementById('cDataPedido').value,
     tipo_peca:      document.getElementById('cTipoPeca1').value,
-    quantidade:     document.getElementById('cQtd1').value,
+    quantidade:     parseInt(document.getElementById('cQtd1').value)||0,
     tamanhos:       document.getElementById('cTamanhos1').value,
     cores:          document.getElementById('cCores1').value,
     tecido:         document.getElementById('cTecido1').value,
