@@ -175,7 +175,7 @@ function formCliente(c={}) {
                 <span><strong>Aviamentos:</strong> <span id="custoPeca${i}_avia">R$ 0,00</span></span>
                 <span><strong>Costura:</strong> <span id="custoPeca${i}_costura">R$ 0,00</span></span>
                 <span id="custoPeca${i}_costuraDetalhe" style="font-size:0.8rem;color:#636e72"></span>
-                <span><strong>Corte:</strong> <span id="custoPeca${i}_corte">R$ 0,00</span></span>
+                <span><strong>Silk/Caseado/Travete/Bordado/Corte/Operacional:</strong> <span id="custoPeca${i}_extras">R$ 0,00</span></span>
                 <span style="font-size:1rem;font-weight:700;color:#4361ee"><i class="fas fa-calculator me-1"></i>Total da Peça: <span id="custoPeca${i}_total">R$ 0,00</span></span>
                 <span style="font-size:1rem;font-weight:700;color:#7c3aed"><i class="fas fa-tag me-1"></i>Custo/Un: <span id="custoPeca${i}_unit">R$ 0,00</span></span>
                 <span style="font-size:1rem;font-weight:700;color:#059669"><i class="fas fa-arrow-trend-up me-1"></i>Lucro da Peça: <span id="custoPeca${i}_lucro">—</span></span>
@@ -313,7 +313,7 @@ function formCliente(c={}) {
           <div class="p-2 rounded text-center" style="background:#fff3cd;border:1px solid #ffc107">
             <div class="small text-muted fw-semibold">CUSTO TOTAL</div>
             <div class="fs-5 fw-bold text-warning" id="resumoCustoTotal">R$ 0,00</div>
-            <div class="small text-muted">Tecido + Aviamentos + Costura</div>
+            <div class="small text-muted">Tecido + Aviamentos + Costura + Corte + SILK + Caseado + Travete + Bordado + Operacional</div>
           </div>
         </div>
         <div class="col-md-6">
@@ -523,9 +523,29 @@ function calcResumo() {
   }
   const costuraRateio = costura;
 
+  // Serviços/custos que não são de uma peça específica (calculados antes do
+  // loop pra poder ratear em cada peça, proporcional à quantidade dela)
+  const operacional = (parseFloat(document.getElementById('cUber')?.value)||0)
+                    + (parseFloat(document.getElementById('cAlmoco')?.value)||0)
+                    + (parseFloat(document.getElementById('cGasolina')?.value)||0)
+                    + (parseFloat(document.getElementById('cEstacionamento')?.value)||0);
+  const silkQtdN = parseInt(document.getElementById('silkQtd')?.value)||0;
+  let silkTotal = 0;
+  for(let s=1;s<=silkQtdN;s++) {
+    const sq = parseFloat(document.getElementById(`silk_qtd_${s}`)?.value)||0;
+    const sv = parseFloat(document.getElementById(`silk_val_${s}`)?.value)||0;
+    silkTotal += sq * sv;
+  }
+  const caseadoTotal  = (parseFloat(document.getElementById('caseadoQtd')?.value)||0) * (parseFloat(document.getElementById('caseadoVal')?.value)||0);
+  const traveteTotal  = (parseFloat(document.getElementById('traveteQtd')?.value)||0) * (parseFloat(document.getElementById('traveteVal')?.value)||0);
+  const bordadoCusto  = (parseFloat(document.getElementById('bordadoPecasQtd')?.value)||0) * (parseFloat(document.getElementById('bordadoPecasVal')?.value)||0);
+  const corteCusto    = (parseFloat(document.getElementById('corteClaudiaQtd')?.value)||0) * (parseFloat(document.getElementById('corteClaudiaVal')?.value)||0);
+  const extrasGlobais = silkTotal + caseadoTotal + traveteTotal + bordadoCusto + corteCusto + operacional;
+
   const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = fmtMoney(val); };
 
   let custoTotal = 0;
+  let extrasDistribuidos = 0;
   for (let i = 1; i <= 5; i++) {
     const ativo = i <= nPecas;
     const tec = parseFloat(document.getElementById(`cTecidoValor${i}`)?.value)||0;
@@ -542,18 +562,22 @@ function calcResumo() {
       aviaSum += tot;
       setEl(`p${i}_avia_${a.key}_tot`, tot);
     });
-    const total = ativo ? (tec + estampaValor + aviaSum + costuraRateio) : 0;
+    // rateio dos serviços globais (Silk/Caseado/Travete/Bordado/Corte/Operacional)
+    // proporcional à quantidade desta peça, pra somar no lucro/custo de cada peça
+    const extraRateio = (ativo && qtdTotal > 0) ? extrasGlobais * (qtdPeca / qtdTotal) : 0;
+    if (ativo) extrasDistribuidos += extraRateio;
+    const total = ativo ? (tec + estampaValor + aviaSum + costuraRateio + extraRateio) : 0;
     const qtd   = parseFloat(document.getElementById(`cQtd${i}`)?.value)||0;
     const unit  = (total > 0 && qtd > 0) ? total / qtd : 0;
     setEl(`custoPeca${i}_tecido`,   tec);
     setEl(`custoPeca${i}_estampa`,  ativo ? estampaValor : 0);
     setEl(`custoPeca${i}_avia`,     ativo ? aviaSum      : 0);
     setEl(`custoPeca${i}_costura`,  ativo ? costuraRateio : 0);
+    setEl(`custoPeca${i}_extras`,   ativo ? extraRateio   : 0);
     const detEl = document.getElementById(`custoPeca${i}_costuraDetalhe`);
     if (detEl) detEl.innerHTML = ativo && costuraDetalhes.length > 1
       ? costuraDetalhes.map(d=>`${d.nome}: ${fmtMoney(d.tot)}`).join(' | ')
       : '';
-    setEl(`custoPeca${i}_corte`,   0);
     const vendaUnitCampo = parseFloat(document.getElementById(`cVendaValor${i}`)?.value)||0;
     const vendaUnit = vendaUnitCampo > 0 ? vendaUnitCampo
                     : (qtdTotal > 0 ? valorTotal / qtdTotal : 0);
@@ -574,22 +598,8 @@ function calcResumo() {
     if (ativo) custoTotal += total;
   }
 
-  const operacional = (parseFloat(document.getElementById('cUber')?.value)||0)
-                    + (parseFloat(document.getElementById('cAlmoco')?.value)||0)
-                    + (parseFloat(document.getElementById('cGasolina')?.value)||0)
-                    + (parseFloat(document.getElementById('cEstacionamento')?.value)||0);
-  const silkQtdN = parseInt(document.getElementById('silkQtd')?.value)||0;
-  let silkTotal = 0;
-  for(let s=1;s<=silkQtdN;s++) {
-    const sq = parseFloat(document.getElementById(`silk_qtd_${s}`)?.value)||0;
-    const sv = parseFloat(document.getElementById(`silk_val_${s}`)?.value)||0;
-    silkTotal += sq * sv;
-  }
-  const caseadoTotal  = (parseFloat(document.getElementById('caseadoQtd')?.value)||0) * (parseFloat(document.getElementById('caseadoVal')?.value)||0);
-  const traveteTotal  = (parseFloat(document.getElementById('traveteQtd')?.value)||0) * (parseFloat(document.getElementById('traveteVal')?.value)||0);
-  const bordadoCusto  = (parseFloat(document.getElementById('bordadoPecasQtd')?.value)||0) * (parseFloat(document.getElementById('bordadoPecasVal')?.value)||0);
-  const corteCusto    = (parseFloat(document.getElementById('corteClaudiaQtd')?.value)||0) * (parseFloat(document.getElementById('corteClaudiaVal')?.value)||0);
-  custoTotal += silkTotal + caseadoTotal + traveteTotal + bordadoCusto + corteCusto + operacional;
+  // se não deu pra ratear (nenhuma quantidade preenchida), soma direto pra não perder o valor
+  if (qtdTotal <= 0) custoTotal += extrasGlobais - extrasDistribuidos;
 
   const lucro = valorTotal - custoTotal;
   const elC = document.getElementById('resumoCustoTotal');
