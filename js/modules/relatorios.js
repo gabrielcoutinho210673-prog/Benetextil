@@ -28,10 +28,14 @@ async function renderRelatorios(tab) {
 async function renderRelUniforme() {
   const el = document.getElementById('relConteudo');
   try {
-    const dados = await getAll('clientes');
+    const [dados, contasPagar] = await Promise.all([getAll('clientes'), getAll('contas_pagar')]);
     const hoje  = new Date(); hoje.setHours(0,0,0,0);
+    const custoPedido = p => {
+      const desc = `${p.tipo_peca||'Uniforme'} — ${p.nome}`;
+      return contasPagar.filter(c => (c.descricao||'').includes(`— ${desc}`)).reduce((s,c)=>s+(parseFloat(c.valor)||0),0);
+    };
     const total = dados.reduce((s,p)=>s+(parseFloat(p.valor_total)||0),0);
-    const custo = dados.reduce((s,p)=>s+(parseFloat(p.preco_custo_total)||0),0);
+    const custo = dados.reduce((s,p)=>s+custoPedido(p),0);
     const lucro = total - custo;
     const atrasados = dados.filter(p=>p.data_entrega&&new Date(p.data_entrega+'T00:00:00')<hoje).length;
     const entregues = dados.filter(p=>p.data_entrega&&new Date(p.data_entrega+'T00:00:00')<=hoje).length;
@@ -63,7 +67,8 @@ async function renderRelUniforme() {
             <th>Valor</th><th>Custo</th><th>Lucro</th></tr></thead>
           <tbody>
           ${dados.length ? dados.slice().reverse().map(p=>{
-            const l = (parseFloat(p.valor_total)||0)-(parseFloat(p.preco_custo_total)||0);
+            const c = custoPedido(p);
+            const l = (parseFloat(p.valor_total)||0)-c;
             const ent = p.data_entrega?new Date(p.data_entrega+'T00:00:00'):null;
             const atrasado = ent && ent < hoje;
             return `<tr class="${atrasado?'table-danger':''}">
@@ -72,7 +77,7 @@ async function renderRelUniforme() {
               <td><small>${fmtDate(p.data_pedido)}</small></td>
               <td class="${atrasado?'text-danger fw-bold':''}"><small>${fmtDate(p.data_entrega)}${atrasado?' ⚠️':''}</small></td>
               <td class="text-success fw-semibold">${fmtMoney(p.valor_total)}</td>
-              <td class="text-danger">${fmtMoney(p.preco_custo_total)}</td>
+              <td class="text-danger">${fmtMoney(c)}</td>
               <td class="${l>=0?'text-success':'text-danger'} fw-bold">${fmtMoney(l)}</td></tr>`;
           }).join('') : `<tr><td colspan="7" class="text-center text-muted py-4">Nenhum pedido</td></tr>`}
           </tbody>
