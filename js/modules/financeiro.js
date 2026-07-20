@@ -5,6 +5,21 @@ let finFiltro = 'todos';
 let finMes    = '';
 let funcMes   = null;
 
+// Monta a lista de meses do filtro: sempre inclui janeiro até o mês atual do
+// ano corrente, e também qualquer outro mês que tenha lançamento (datas mal
+// digitadas, tipo "20226-07", são ignoradas em vez de aparecer como "Invalid Date").
+function mesesFinanceiro(registros) {
+  const mesesSet = new Set();
+  registros.forEach(r => {
+    if (r.vencimento && /^\d{4}-\d{2}/.test(r.vencimento)) mesesSet.add(r.vencimento.slice(0,7));
+  });
+  const hoje = new Date();
+  for (let m = 0; m <= hoje.getMonth(); m++) {
+    mesesSet.add(`${hoje.getFullYear()}-${String(m+1).padStart(2,'0')}`);
+  }
+  return Array.from(mesesSet).sort().reverse();
+}
+
 function renderFinanceiro(tab) {
   if (tab) finTab = tab;
   document.getElementById('pageTitle').textContent = 'Financeiro';
@@ -151,10 +166,7 @@ async function renderContasPagar(search, filtro) {
   if (!el) return;
   try {
     const todos = await getAll('contas_pagar');
-
-    const mesesSet = new Set();
-    todos.forEach(c => { if (c.vencimento) mesesSet.add(c.vencimento.slice(0,7)); });
-    const meses = Array.from(mesesSet).sort().reverse();
+    const meses = mesesFinanceiro(todos);
 
     let dados = todos;
     if (finSearch) dados = dados.filter(c => (c.descricao+' '+c.fornecedor).toLowerCase().includes(finSearch.toLowerCase()));
@@ -230,10 +242,7 @@ async function renderContasReceber(search, filtro) {
   if (!el) return;
   try {
     const todos = await getAll('contas_receber');
-
-    const mesesSet = new Set();
-    todos.forEach(c => { if (c.vencimento) mesesSet.add(c.vencimento.slice(0,7)); });
-    const meses = Array.from(mesesSet).sort().reverse();
+    const meses = mesesFinanceiro(todos);
 
     let dados = todos;
     if (finSearch) dados = dados.filter(c => (c.descricao+' '+c.cliente).toLowerCase().includes(finSearch.toLowerCase()));
