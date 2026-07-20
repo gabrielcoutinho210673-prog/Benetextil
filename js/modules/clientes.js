@@ -737,8 +737,7 @@ async function salvarCliente(id) {
     const desc = `${data.tipo_peca||'Uniforme'} — ${nome}`;
 
     if (!id && data.valor_total > 0) {
-      const statusRec = data.entrada >= data.valor_total ? 'recebido'
-                      : data.entrada > 0 ? 'parcial' : 'pendente';
+      const statusRec = data.entrada >= data.valor_total ? 'pago' : 'pendente';
       await insert('contas_receber', {
         descricao: `Venda: ${desc}`, cliente: nome,
         valor: data.valor_total, vencimento: venc, status: statusRec, ativo: 1
