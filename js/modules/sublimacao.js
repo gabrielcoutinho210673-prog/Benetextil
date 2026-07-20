@@ -163,8 +163,9 @@ function formSublimacao(r={}) {
     <div class="col-md-3">
       <label class="form-label fw-semibold">VALOR DE VENDA TOTAL (R$)</label>
       <div class="input-group"><span class="input-group-text">R$</span>
-        <input type="number" class="form-control" id="sValorVenda" step="0.01" min="0" value="${v('valor_venda')}" oninput="calcTotalSublimacao()">
+        <input type="number" class="form-control" id="sValorVenda" step="0.01" min="0" value="${v('valor_venda')}" readonly style="background:#f0fff4">
       </div>
+      <small class="text-muted">Calculado automaticamente (metros × valor/metro)</small>
     </div>
 
     <div class="col-12">
@@ -251,7 +252,7 @@ function calcTotalSublimacao() {
   const vendaEl = document.getElementById('sValorVenda');
   const tecidoVendaEl = document.getElementById('sValorTecidoVenda');
   if (tecidoVendaEl && totalMetro > 0) tecidoVendaEl.value = totalMetro.toFixed(2);
-  if (vendaEl && totalMetro > 0 && !vendaEl.value) vendaEl.value = totalMetro.toFixed(2);
+  if (vendaEl && totalMetro > 0) vendaEl.value = totalMetro.toFixed(2);
 
   const outros = ['uber','almoco','gasolina','estacionamento','brim','mao_obra_anderson'].reduce((s,id)=>s+(parseFloat(document.getElementById(id)?.value)||0),0);
   const total = outros + custoTecidoTotal;
