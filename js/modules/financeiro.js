@@ -2,6 +2,7 @@
 let finTab    = 'pagar';
 let finSearch = '';
 let finFiltro = 'todos';
+let finMes    = '';
 let funcMes   = null;
 
 function renderFinanceiro(tab) {
@@ -149,8 +150,15 @@ async function renderContasPagar(search, filtro) {
   const el = document.getElementById('finConteudo');
   if (!el) return;
   try {
-    let dados = await getAll('contas_pagar');
+    const todos = await getAll('contas_pagar');
+
+    const mesesSet = new Set();
+    todos.forEach(c => { if (c.vencimento) mesesSet.add(c.vencimento.slice(0,7)); });
+    const meses = Array.from(mesesSet).sort().reverse();
+
+    let dados = todos;
     if (finSearch) dados = dados.filter(c => (c.descricao+' '+c.fornecedor).toLowerCase().includes(finSearch.toLowerCase()));
+    if (finMes) dados = dados.filter(c => (c.vencimento||'').startsWith(finMes));
     const hoje = new Date(); hoje.setHours(0,0,0,0);
     if (finFiltro === 'pendente') dados = dados.filter(c => c.status === 'pendente');
     if (finFiltro === 'pago')    dados = dados.filter(c => c.status === 'pago');
@@ -171,7 +179,11 @@ async function renderContasPagar(search, filtro) {
         <div class="d-flex gap-1 flex-wrap">
           ${['todos','pendente','pago','atrasado'].map(f=>`<button class="btn btn-sm ${finFiltro===f?'btn-primary':'btn-outline-secondary'}" onclick="renderContasPagar(undefined,'${f}')">${f==='todos'?'Todos':f==='pendente'?'Pendente':f==='pago'?'Pagos':'Atrasados'}</button>`).join('')}
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 flex-wrap">
+          <select class="form-select form-select-sm" style="width:180px" onchange="finMes=this.value;renderContasPagar()">
+            <option value="">Todos os meses</option>
+            ${meses.map(m=>`<option value="${m}" ${finMes===m?'selected':''}>${new Date(m+'-02').toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}</option>`).join('')}
+          </select>
           <div class="input-group input-group-sm" style="width:220px">
             <input type="text" class="form-control" placeholder="Buscar..." value="${escHtml(finSearch)}" oninput="renderContasPagar(this.value)">
             <button class="btn btn-outline-secondary" onclick="renderContasPagar('')"><i class="fas fa-times"></i></button>
@@ -217,8 +229,15 @@ async function renderContasReceber(search, filtro) {
   const el = document.getElementById('finConteudo');
   if (!el) return;
   try {
-    let dados = await getAll('contas_receber');
+    const todos = await getAll('contas_receber');
+
+    const mesesSet = new Set();
+    todos.forEach(c => { if (c.vencimento) mesesSet.add(c.vencimento.slice(0,7)); });
+    const meses = Array.from(mesesSet).sort().reverse();
+
+    let dados = todos;
     if (finSearch) dados = dados.filter(c => (c.descricao+' '+c.cliente).toLowerCase().includes(finSearch.toLowerCase()));
+    if (finMes) dados = dados.filter(c => (c.vencimento||'').startsWith(finMes));
     const hoje = new Date(); hoje.setHours(0,0,0,0);
     if (finFiltro === 'pendente') dados = dados.filter(c => c.status === 'pendente');
     if (finFiltro === 'pago')    dados = dados.filter(c => c.status === 'pago');
@@ -239,7 +258,11 @@ async function renderContasReceber(search, filtro) {
         <div class="d-flex gap-1 flex-wrap">
           ${['todos','pendente','pago','atrasado'].map(f=>`<button class="btn btn-sm ${finFiltro===f?'btn-primary':'btn-outline-secondary'}" onclick="renderContasReceber(undefined,'${f}')">${f==='todos'?'Todos':f==='pendente'?'Pendente':f==='pago'?'Recebidos':'Atrasados'}</button>`).join('')}
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 flex-wrap">
+          <select class="form-select form-select-sm" style="width:180px" onchange="finMes=this.value;renderContasReceber()">
+            <option value="">Todos os meses</option>
+            ${meses.map(m=>`<option value="${m}" ${finMes===m?'selected':''}>${new Date(m+'-02').toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}</option>`).join('')}
+          </select>
           <div class="input-group input-group-sm" style="width:220px">
             <input type="text" class="form-control" placeholder="Buscar..." value="${escHtml(finSearch)}" oninput="renderContasReceber(this.value)">
             <button class="btn btn-outline-secondary" onclick="renderContasReceber('')"><i class="fas fa-times"></i></button>
