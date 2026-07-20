@@ -31,6 +31,7 @@ function nav(page, sub='') {
     produtos:    renderProdutos,
     compras:     renderCompras,
     contascasa:  renderContasCasa,
+    construcao:  renderConstrucao,
     categorias:  renderCategorias,
     fornecedores:renderFornecedores,
     pdv:         renderPDV,
