@@ -152,7 +152,6 @@ function formCliente(c={}) {
           <div class="col-md-3"><label class="form-label">Tecido</label><input class="form-control" id="cTecido${i}" value="${v(i===1?'tecido':`peca${i}_tecido`)}"></div>
           <div class="col-md-2"><label class="form-label">Metros / Qtd Tecido</label><div class="input-group"><input type="number" class="form-control" id="cTecidoQtd${i}" step="0.01" min="0" placeholder="0,00" value="${v(i===1?'tecido_qtd':`peca${i}_tecido_qtd`)}"><span class="input-group-text">m</span></div></div>
           <div class="col-md-2"><label class="form-label">Valor Gasto no Tecido (R$)</label><div class="input-group"><span class="input-group-text">R$</span><input type="number" class="form-control" id="cTecidoValor${i}" step="0.01" min="0" value="${v(i===1?'tecido_valor':`peca${i}_tecido_valor`)}" oninput="calcResumo()"></div></div>
-          <div class="col-md-3"><label class="form-label">Estampa / Bordado</label><input class="form-control" id="cEstampa${i}" value="${v(i===1?'estampa':`peca${i}_estampa`)}"></div>
           <div class="col-md-3"><label class="form-label">Observações</label><input class="form-control" id="cObsServico${i}" value="${v(i===1?'obs_servico':`peca${i}_obs`)}"></div>
           <div class="col-md-2"><label class="form-label">Valor de Venda/Un (R$)</label><div class="input-group"><span class="input-group-text">R$</span><input type="number" class="form-control" id="cVendaValor${i}" step="0.01" min="0" value="${v(i===1?'venda_valor':`peca${i}_venda_valor`)}" oninput="calcResumo()" placeholder="0,00"></div></div>
           <div class="col-12 mt-1">
@@ -171,7 +170,6 @@ function formCliente(c={}) {
               </table>
               <div style="background:#e8f4fd;border:1px solid #4361ee;border-radius:8px;padding:8px 14px;font-size:0.9rem;color:#1a237e;display:flex;gap:20px;align-items:center;flex-wrap:wrap">
                 <span><strong>Tecido:</strong> <span id="custoPeca${i}_tecido">R$ 0,00</span></span>
-                <span><strong>Estampa/Bordado:</strong> <span id="custoPeca${i}_estampa">R$ 0,00</span></span>
                 <span><strong>Aviamentos:</strong> <span id="custoPeca${i}_avia">R$ 0,00</span></span>
                 <span><strong>Costura:</strong> <span id="custoPeca${i}_costura">R$ 0,00</span></span>
                 <span id="custoPeca${i}_costuraDetalhe" style="font-size:0.8rem;color:#636e72"></span>
@@ -550,10 +548,6 @@ function calcResumo() {
     const ativo = i <= nPecas;
     const tec = parseFloat(document.getElementById(`cTecidoValor${i}`)?.value)||0;
     const qtdPeca = parseFloat(document.getElementById(`cQtd${i}`)?.value)||0;
-    const estampaNumerico = parseFloat(document.getElementById(`cEstampaValor${i}`)?.value)||0;
-    const estampaTexto    = parseFloat((document.getElementById(`cEstampa${i}`)?.value||'').replace(',','.'))||0;
-    const estampaUnit  = estampaNumerico || estampaTexto;
-    const estampaValor = estampaUnit * qtdPeca;
     let aviaSum = 0;
     AVIAMENTOS_LIST.forEach(a => {
       const qtd = parseFloat(document.getElementById(`p${i}_avia_${a.key}_qtd`)?.value)||0;
@@ -566,11 +560,10 @@ function calcResumo() {
     // proporcional à quantidade desta peça, pra somar no lucro/custo de cada peça
     const extraRateio = (ativo && qtdTotal > 0) ? extrasGlobais * (qtdPeca / qtdTotal) : 0;
     if (ativo) extrasDistribuidos += extraRateio;
-    const total = ativo ? (tec + estampaValor + aviaSum + costuraRateio + extraRateio) : 0;
+    const total = ativo ? (tec + aviaSum + costuraRateio + extraRateio) : 0;
     const qtd   = parseFloat(document.getElementById(`cQtd${i}`)?.value)||0;
     const unit  = (total > 0 && qtd > 0) ? total / qtd : 0;
     setEl(`custoPeca${i}_tecido`,   tec);
-    setEl(`custoPeca${i}_estampa`,  ativo ? estampaValor : 0);
     setEl(`custoPeca${i}_avia`,     ativo ? aviaSum      : 0);
     setEl(`custoPeca${i}_costura`,  ativo ? costuraRateio : 0);
     setEl(`custoPeca${i}_extras`,   ativo ? extraRateio   : 0);
@@ -648,8 +641,6 @@ async function salvarCliente(id) {
     tecido:         document.getElementById('cTecido1').value,
     tecido_qtd:     parseFloat(document.getElementById('cTecidoQtd1')?.value)||0,
     tecido_valor:   parseFloat(document.getElementById('cTecidoValor1').value)||0,
-    estampa:        document.getElementById('cEstampa1').value,
-    estampa_valor:  parseFloat(document.getElementById('cEstampaValor1')?.value)||0,
     venda_valor:    parseFloat(document.getElementById('cVendaValor1').value)||0,
     obs_servico:    document.getElementById('cObsServico1').value,
     peca2_tipo:     document.getElementById('cTipoPeca2').value,
@@ -659,8 +650,6 @@ async function salvarCliente(id) {
     peca2_tecido:        document.getElementById('cTecido2').value,
     peca2_tecido_qtd:    parseFloat(document.getElementById('cTecidoQtd2')?.value)||0,
     peca2_tecido_valor:  parseFloat(document.getElementById('cTecidoValor2').value)||0,
-    peca2_estampa:        document.getElementById('cEstampa2').value,
-    peca2_estampa_valor:  parseFloat(document.getElementById('cEstampaValor2')?.value)||0,
     peca2_venda_valor:    parseFloat(document.getElementById('cVendaValor2').value)||0,
     peca2_obs:            document.getElementById('cObsServico2').value,
     peca3_tipo:     document.getElementById('cTipoPeca3').value,
@@ -670,8 +659,6 @@ async function salvarCliente(id) {
     peca3_tecido:        document.getElementById('cTecido3').value,
     peca3_tecido_qtd:    parseFloat(document.getElementById('cTecidoQtd3')?.value)||0,
     peca3_tecido_valor:  parseFloat(document.getElementById('cTecidoValor3').value)||0,
-    peca3_estampa:        document.getElementById('cEstampa3').value,
-    peca3_estampa_valor:  parseFloat(document.getElementById('cEstampaValor3')?.value)||0,
     peca3_venda_valor:    parseFloat(document.getElementById('cVendaValor3').value)||0,
     peca3_obs:            document.getElementById('cObsServico3').value,
     peca4_tipo:     document.getElementById('cTipoPeca4').value,
@@ -681,8 +668,6 @@ async function salvarCliente(id) {
     peca4_tecido:        document.getElementById('cTecido4').value,
     peca4_tecido_qtd:    parseFloat(document.getElementById('cTecidoQtd4')?.value)||0,
     peca4_tecido_valor:  parseFloat(document.getElementById('cTecidoValor4').value)||0,
-    peca4_estampa:        document.getElementById('cEstampa4').value,
-    peca4_estampa_valor:  parseFloat(document.getElementById('cEstampaValor4')?.value)||0,
     peca4_venda_valor:    parseFloat(document.getElementById('cVendaValor4').value)||0,
     peca4_obs:            document.getElementById('cObsServico4').value,
     peca5_tipo:     document.getElementById('cTipoPeca5').value,
@@ -692,8 +677,6 @@ async function salvarCliente(id) {
     peca5_tecido:        document.getElementById('cTecido5').value,
     peca5_tecido_qtd:    parseFloat(document.getElementById('cTecidoQtd5')?.value)||0,
     peca5_tecido_valor:  parseFloat(document.getElementById('cTecidoValor5').value)||0,
-    peca5_estampa:        document.getElementById('cEstampa5').value,
-    peca5_estampa_valor:  parseFloat(document.getElementById('cEstampaValor5')?.value)||0,
     peca5_venda_valor:    parseFloat(document.getElementById('cVendaValor5').value)||0,
     peca5_obs:            document.getElementById('cObsServico5').value,
     ...(()=>{
