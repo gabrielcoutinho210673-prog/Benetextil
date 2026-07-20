@@ -779,6 +779,7 @@ async function salvarCliente(id) {
     if (data.gasolina      > 0) custos.push({ label: 'Gasolina',       val: data.gasolina });
     if (data.estacionamento > 0) custos.push({ label: 'Estacionamento', val: data.estacionamento });
 
+    let descricoesJaPagas = new Set();
     if (id) {
       const { data: existentes } = await supabaseClient
         .from('contas_pagar').select('id,descricao,status').like('descricao', `%— ${desc}`);
@@ -786,11 +787,15 @@ async function salvarCliente(id) {
       if (pendentesIds.length > 0) {
         await supabaseClient.from('contas_pagar').delete().in('id', pendentesIds);
       }
+      // custos já pagos não são recriados, pra não duplicar cobrança de algo que já foi quitado
+      descricoesJaPagas = new Set((existentes||[]).filter(e=>e.status==='pago').map(e=>e.descricao));
     }
 
     for (const c of custos) {
+      const descricaoCompleta = `${c.label} — ${desc}`;
+      if (descricoesJaPagas.has(descricaoCompleta)) continue;
       await insert('contas_pagar', {
-        descricao:  `${c.label} — ${desc}`,
+        descricao:  descricaoCompleta,
         fornecedor: c.fornecedor || 'Benetextil',
         valor:      c.val, vencimento: venc, status: 'pendente', ativo: 1
       });
