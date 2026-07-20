@@ -297,12 +297,61 @@ async function salvarSublimacao(id) {
     valor_venda:    parseFloat(document.getElementById('sValorVenda').value)||0,
     ativo: 1
   };
+  const rotulo = descricao || data.nome_cliente || data.tecido || 'Sublimação';
+
   try {
     if (id) {
       await update('sublimacao',id,data);
+
+      // preenche lançamentos que faltaram (ex: registro editado depois de criado
+      // sem valor de venda/gasto ainda calculado) — nunca duplica o que já existe.
+      // Usa o próprio ID do registro como identificador único, já que descrição e
+      // cliente costumam ficar em branco (não dá pra confiar só no texto pra comparar).
+      const tag = `Sublimação #${id}`;
+      const totalGastoEdit = data.uber + data.almoco + data.gasolina + data.estacionamento + data.brim + data.mao_obra_anderson;
+      if (totalGastoEdit > 0) {
+        const existentesPagar = await getAll('contas_pagar');
+        const itensEdit = [
+          { label: 'Uber',               val: data.uber,              fornecedor: 'Benetextil' },
+          { label: 'Almoço',             val: data.almoco,            fornecedor: 'Benetextil' },
+          { label: 'Gasolina',           val: data.gasolina,          fornecedor: 'Benetextil' },
+          { label: 'Estacionamento',     val: data.estacionamento,    fornecedor: 'Benetextil' },
+          { label: 'Brim',               val: data.brim,              fornecedor: 'Benetextil' },
+          { label: 'Mão de Obra Anderson', val: data.mao_obra_anderson, fornecedor: 'Anderson' },
+        ].filter(i => i.val > 0);
+        for (const item of itensEdit) {
+          const jaExiste = existentesPagar.some(c => (c.descricao||'').startsWith(`${tag} — ${item.label}:`));
+          if (jaExiste) continue;
+          await insert('contas_pagar', {
+            descricao:  `${tag} — ${item.label}: ${rotulo}`,
+            fornecedor: item.fornecedor,
+            valor:      item.val,
+            vencimento: localDateStr(),
+            status:     'pendente',
+            ativo: 1
+          });
+        }
+        Cache.clear('contas_pagar');
+      }
+      if (data.valor_venda > 0) {
+        const existentesReceber = await getAll('contas_receber');
+        const jaTem = existentesReceber.some(r => (r.descricao||'').startsWith(`${tag} —`));
+        if (!jaTem) {
+          await insert('contas_receber', {
+            descricao:  `${tag} — ${rotulo}`,
+            cliente:    data.nome_cliente || '',
+            valor:      data.valor_venda,
+            vencimento: data.data_entrega || localDateStr(),
+            status:     'pendente',
+            ativo: 1
+          });
+          Cache.clear('contas_receber');
+        }
+      }
       toast('Registro atualizado!');
     } else {
-      await insert('sublimacao', data);
+      const novo = await insert('sublimacao', data);
+      const tag = `Sublimação #${novo.id}`;
       const totalGasto = data.uber + data.almoco + data.gasolina + data.estacionamento + data.brim + data.mao_obra_anderson;
       if (totalGasto > 0) {
         const hoje = localDateStr();
@@ -316,7 +365,7 @@ async function salvarSublimacao(id) {
         ].filter(i => i.val > 0);
         for (const item of itens) {
           await insert('contas_pagar', {
-            descricao:  `Sublimação — ${item.label}: ${descricao}`,
+            descricao:  `${tag} — ${item.label}: ${rotulo}`,
             fornecedor: item.fornecedor,
             valor:      item.val,
             vencimento: hoje,
@@ -330,7 +379,7 @@ async function salvarSublimacao(id) {
       }
       if (data.valor_venda > 0) {
         await insert('contas_receber', {
-          descricao:  `Sublimação — ${descricao || data.nome_cliente || ''}`,
+          descricao:  `${tag} — ${rotulo}`,
           cliente:    data.nome_cliente || '',
           valor:      data.valor_venda,
           vencimento: data.data_entrega || localDateStr(),
