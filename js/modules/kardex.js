@@ -9,12 +9,12 @@ async function renderKardex(tipo) {
   try {
     const [movs, produtos] = await Promise.all([getAll('kardex'), getAll('produtos')]);
     let dados = movs;
-    if (kardexSearch) dados = dados.filter(m => (m.produto_nome+' '+m.obs+' '+m.tipo).toLowerCase().includes(kardexSearch.toLowerCase()));
+    if (kardexSearch) dados = dados.filter(m => (m.produto_nome+' '+m.descricao+' '+m.tipo).toLowerCase().includes(kardexSearch.toLowerCase()));
     if (kardexTipo !== 'todos') dados = dados.filter(m => m.tipo === kardexTipo);
     dados = dados.slice().reverse();
 
-    const totalEntradas = dados.filter(m=>m.tipo==='entrada').reduce((s,m)=>s+(parseFloat(m.qtd)||0),0);
-    const totalSaidas   = dados.filter(m=>m.tipo==='saida').reduce((s,m)=>s+(parseFloat(m.qtd)||0),0);
+    const totalEntradas = dados.filter(m=>m.tipo==='entrada').reduce((s,m)=>s+(parseFloat(m.quantidade)||0),0);
+    const totalSaidas   = dados.filter(m=>m.tipo==='saida').reduce((s,m)=>s+(parseFloat(m.quantidade)||0),0);
 
     document.getElementById('pageContent').innerHTML = `
     <div class="row g-2 mb-3">
@@ -39,15 +39,17 @@ async function renderKardex(tipo) {
         <div class="table-responsive">
           <table class="table mb-0">
             <thead><tr>
-              <th class="ps-3">Produto</th><th>Tipo</th><th>Qtd</th><th>Data</th><th>Observação</th><th class="text-end pe-3">Ações</th>
+              <th class="ps-3">Produto</th><th>Tipo</th><th>Qtd</th><th>Saldo Ant.</th><th>Saldo Atual</th><th>Data</th><th>Observação</th><th class="text-end pe-3">Ações</th>
             </tr></thead>
             <tbody>
             ${dados.length ? dados.map(m => `<tr>
               <td class="ps-3 fw-semibold">${escHtml(m.produto_nome||'—')}</td>
               <td><span class="badge ${m.tipo==='entrada'?'bg-success':m.tipo==='saida'?'bg-danger':'bg-warning text-dark'}">${m.tipo==='entrada'?'Entrada':m.tipo==='saida'?'Saída':'Ajuste'}</span></td>
-              <td class="fw-bold ${m.tipo==='entrada'?'text-success':m.tipo==='saida'?'text-danger':''}">${m.tipo==='saida'?'−':'+'}${parseFloat(m.qtd)||0}</td>
+              <td class="fw-bold ${m.tipo==='entrada'?'text-success':m.tipo==='saida'?'text-danger':''}">${m.tipo==='saida'?'−':'+'}${parseFloat(m.quantidade)||0}</td>
+              <td class="text-muted">${parseFloat(m.saldo_anterior)||0}</td>
+              <td class="fw-semibold">${parseFloat(m.saldo_atual)||0}</td>
               <td><small>${fmtDate(m.data)}</small></td>
-              <td><small class="text-muted">${escHtml((m.obs||'').slice(0,40))}</small></td>
+              <td><small class="text-muted">${escHtml((m.descricao||'').slice(0,40))}</small></td>
               <td class="text-end pe-3">
                 <button class="btn btn-icon btn-outline-danger btn-sm" onclick="delKardex(${m.id})"><i class="fas fa-trash"></i></button>
               </td></tr>`).join('')
@@ -66,13 +68,13 @@ function formKardex(produtos) {
     <div class="col-12"><label class="form-label fw-semibold">PRODUTO *</label>
       <select class="form-select" id="kardexProd">
         <option value="">Selecione um produto...</option>
-        ${produtos.map(p=>`<option value="${p.id}" data-nome="${escHtml(p.nome||'')}">${escHtml(p.nome||'')}${p.codigo?' ['+escHtml(p.codigo)+']':''} — Estoque: ${parseFloat(p.estoque_atual)||0} ${p.unidade||'un'}</option>`).join('')}
+        ${produtos.map(p=>`<option value="${p.id}" data-nome="${escHtml(p.nome||'')}" data-est="${parseFloat(p.estoque)||0}">${escHtml(p.nome||'')}${p.codigo?' ['+escHtml(p.codigo)+']':''} — Estoque: ${parseFloat(p.estoque)||0} ${p.unidade||'un'}</option>`).join('')}
       </select></div>
     <div class="col-md-4"><label class="form-label fw-semibold">TIPO *</label>
       <select class="form-select" id="kardexTipoSel">
         <option value="entrada">Entrada</option>
         <option value="saida">Saída</option>
-        <option value="ajuste">Ajuste</option>
+        <option value="ajuste">Ajuste (saldo absoluto)</option>
       </select></div>
     <div class="col-md-4"><label class="form-label fw-semibold">QUANTIDADE *</label>
       <input type="number" class="form-control" id="kardexQtd" step="0.01" min="0.01" placeholder="0"></div>
@@ -89,24 +91,23 @@ function formKardex(produtos) {
 async function salvarKardex() {
   const sel   = document.getElementById('kardexProd');
   const id    = parseInt(sel.value)||0;
-  const nome  = sel.options[sel.selectedIndex]?.getAttribute('data-nome') || '';
+  const opt   = sel.options[sel.selectedIndex];
+  const nome  = opt?.getAttribute('data-nome') || '';
+  const estAnt= parseFloat(opt?.getAttribute('data-est'))||0;
   const tipo  = document.getElementById('kardexTipoSel').value;
   const qtd   = parseFloat(document.getElementById('kardexQtd').value)||0;
   const data  = document.getElementById('kardexData').value;
   const obs   = document.getElementById('kardexObs').value.trim();
   if (!id)  { toast('Selecione um produto','danger'); return; }
   if (!qtd) { toast('Quantidade obrigatória','danger'); return; }
+  const estNovo = tipo==='entrada' ? estAnt+qtd : tipo==='saida' ? Math.max(0, estAnt-qtd) : qtd;
   try {
-    await insert('kardex', { produto_id:id, produto_nome:nome, tipo, qtd, data, obs, ativo:1 });
-    const prods = await getAll('produtos');
-    const p = prods.find(x=>x.id===id);
-    if (p) {
-      let novoEst = parseFloat(p.estoque_atual)||0;
-      if (tipo==='entrada') novoEst += qtd;
-      else if (tipo==='saida') novoEst = Math.max(0, novoEst - qtd);
-      else novoEst = qtd;
-      await update('produtos', id, { estoque_atual: novoEst });
-    }
+    await insert('kardex', {
+      produto_id: id, produto_nome: nome, tipo,
+      quantidade: qtd, saldo_anterior: estAnt, saldo_atual: estNovo,
+      data, descricao: obs, ativo: 1
+    });
+    await update('produtos', id, { estoque: estNovo });
     Cache.clear('kardex'); Cache.clear('produtos');
     toast('Lançamento registrado!'); closeModal(); renderKardex();
   } catch(e) { toast(e.message,'danger'); }

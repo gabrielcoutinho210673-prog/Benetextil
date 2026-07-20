@@ -7,7 +7,7 @@ async function renderPDV() {
   document.getElementById('pageContent').innerHTML = loading();
   try {
     const produtos = await getAll('produtos');
-    const prods = produtos.filter(p => (parseFloat(p.estoque_atual)||0) > 0);
+    const prods = produtos.filter(p => (parseFloat(p.estoque)||0) > 0);
     renderPDVLayout(prods, produtos);
   } catch(e) { toast(e.message,'danger'); }
 }
@@ -26,11 +26,11 @@ function renderPDVLayout(prods, todosProdutos) {
           <div class="row g-2">
             ${prods.slice(0,24).map(p => `
             <div class="col-6 col-md-4">
-              <div class="p-2 border rounded text-center h-100 d-flex flex-column justify-content-between" style="cursor:pointer;transition:.2s" onmouseover="this.style.background='#eef2ff'" onmouseout="this.style.background=''" onclick="pdvAddItem(${p.id},'${escHtml(p.nome||'')}',${parseFloat(p.preco_venda)||0},'${escHtml(p.unidade||'un')}',${parseFloat(p.estoque_atual)||0})">
+              <div class="p-2 border rounded text-center h-100 d-flex flex-column justify-content-between" style="cursor:pointer;transition:.2s" onmouseover="this.style.background='#eef2ff'" onmouseout="this.style.background=''" onclick="pdvAddItem(${p.id},'${escHtml(p.nome||'')}',${parseFloat(p.preco_venda)||0},'${escHtml(p.unidade||'un')}',${parseFloat(p.estoque)||0})">
                 <div class="fw-semibold" style="font-size:.85rem">${escHtml(p.nome)}</div>
                 <div class="text-muted" style="font-size:.75rem">${p.codigo?`[${escHtml(p.codigo)}] `:''}</div>
                 <div class="text-success fw-bold mt-1">${fmtMoney(p.preco_venda||0)}</div>
-                <div class="text-muted" style="font-size:.7rem">${parseFloat(p.estoque_atual)||0} ${p.unidade||'un'} em estoque</div>
+                <div class="text-muted" style="font-size:.7rem">${parseFloat(p.estoque)||0} ${p.unidade||'un'} em estoque</div>
               </div>
             </div>`).join('')}
             ${prods.length===0 ? emptyState('boxes','Nenhum produto em estoque') : ''}
@@ -77,13 +77,13 @@ function renderPDVLayout(prods, todosProdutos) {
 
 function pdvFiltrar(q, todos) {
   pdvSearchText = q;
-  const filtrados = q ? todos.filter(p => (p.nome+' '+(p.codigo||'')).toLowerCase().includes(q.toLowerCase()) && (parseFloat(p.estoque_atual)||0)>0) : todos.filter(p=>(parseFloat(p.estoque_atual)||0)>0);
+  const filtrados = q ? todos.filter(p => (p.nome+' '+(p.codigo||'')).toLowerCase().includes(q.toLowerCase()) && (parseFloat(p.estoque)||0)>0) : todos.filter(p=>(parseFloat(p.estoque)||0)>0);
   document.getElementById('pdvProdutos').innerHTML = `<div class="row g-2">${filtrados.slice(0,24).map(p=>`
     <div class="col-6 col-md-4">
-      <div class="p-2 border rounded text-center h-100 d-flex flex-column justify-content-between" style="cursor:pointer" onmouseover="this.style.background='#eef2ff'" onmouseout="this.style.background=''" onclick="pdvAddItem(${p.id},'${escHtml(p.nome||'')}',${parseFloat(p.preco_venda)||0},'${escHtml(p.unidade||'un')}',${parseFloat(p.estoque_atual)||0})">
+      <div class="p-2 border rounded text-center h-100 d-flex flex-column justify-content-between" style="cursor:pointer" onmouseover="this.style.background='#eef2ff'" onmouseout="this.style.background=''" onclick="pdvAddItem(${p.id},'${escHtml(p.nome||'')}',${parseFloat(p.preco_venda)||0},'${escHtml(p.unidade||'un')}',${parseFloat(p.estoque)||0})">
         <div class="fw-semibold" style="font-size:.85rem">${escHtml(p.nome)}</div>
         <div class="text-success fw-bold mt-1">${fmtMoney(p.preco_venda||0)}</div>
-        <div class="text-muted" style="font-size:.7rem">${parseFloat(p.estoque_atual)||0} ${p.unidade||'un'}</div>
+        <div class="text-muted" style="font-size:.7rem">${parseFloat(p.estoque)||0} ${p.unidade||'un'}</div>
       </div>
     </div>`).join('')}${filtrados.length===0?emptyState('boxes','Nenhum produto encontrado'):''}</div>`;
 }
@@ -148,33 +148,53 @@ async function pdvFecharVenda() {
   const hoje        = localDateStr();
 
   try {
+    const vendasExistentes = await getAll('vendas');
+    const ultimoNumero = vendasExistentes.reduce((m,v)=>Math.max(m,parseInt(v.numero)||0),0);
+    const numero = String(ultimoNumero+1).padStart(6,'0');
+
     const venda = await insert('vendas', {
-      data:        hoje,
-      cliente:     cliente || 'Balcão',
-      forma_pag:   formaPag,
+      numero,
+      cliente_nome:    cliente || 'Balcão',
+      data:            hoje,
+      forma_pagamento: formaPag,
+      subtotal:        total,
+      desconto:        0,
       total,
-      itens:       JSON.stringify(pdvCarrinho),
-      status:      'fechada',
+      status:          'fechada',
       ativo: 1
     });
 
     for (const item of pdvCarrinho) {
+      await insert('itens_venda', {
+        venda_id:     venda.id,
+        produto_id:   item.id,
+        produto_nome: item.nome,
+        quantidade:   item.qtd,
+        preco:        item.preco,
+        desconto:     0,
+        total:        item.preco*item.qtd,
+        ativo: 1
+      });
       const prods = await getAll('produtos');
       const p = prods.find(x=>x.id===item.id);
       if (p) {
-        const novoEstoque = Math.max(0, (parseFloat(p.estoque_atual)||0) - item.qtd);
-        await update('produtos', item.id, { estoque_atual: novoEstoque });
+        const estoqueAnterior = parseFloat(p.estoque)||0;
+        const novoEstoque = Math.max(0, estoqueAnterior - item.qtd);
+        await update('produtos', item.id, { estoque: novoEstoque });
         await insert('kardex', {
-          produto_id:   item.id,
-          produto_nome: item.nome,
-          tipo:         'saida',
-          qtd:          item.qtd,
-          data:         hoje,
-          obs:          `PDV — Venda para ${cliente||'balcão'}`
+          produto_id:     item.id,
+          produto_nome:   item.nome,
+          tipo:           'saida',
+          quantidade:     item.qtd,
+          saldo_anterior: estoqueAnterior,
+          saldo_atual:    novoEstoque,
+          data:           hoje,
+          descricao:      `PDV — Venda ${numero} para ${cliente||'balcão'}`,
+          ativo: 1
         });
       }
     }
-    Cache.clear('produtos'); Cache.clear('vendas'); Cache.clear('kardex');
+    Cache.clear('produtos'); Cache.clear('vendas'); Cache.clear('itens_venda'); Cache.clear('kardex');
 
     if (formaPag === 'fiado') {
       await insert('contas_receber', {
