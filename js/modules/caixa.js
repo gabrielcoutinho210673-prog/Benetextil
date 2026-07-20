@@ -3,114 +3,128 @@ async function renderCaixa() {
   document.getElementById('pageTitle').textContent = 'Caixa';
   document.getElementById('pageContent').innerHTML = loading();
   try {
-    const hoje = localDateStr();
-    const [vendas, pagar, receber] = await Promise.all([
-      getAll('vendas'), getAll('contas_pagar'), getAll('contas_receber')
-    ]);
-
-    const vendasHoje = vendas.filter(v => v.data === hoje && v.status === 'fechada');
-    const pagarHoje  = pagar.filter(c  => c.vencimento === hoje);
-    const receberHoje= receber.filter(c => c.vencimento === hoje);
-
-    const totalEntradas  = vendasHoje.reduce((s,v)=>s+(parseFloat(v.total)||0),0);
-    const totalPagar     = pagarHoje.reduce((s,c)=>s+(parseFloat(c.valor)||0),0);
-    const totalReceber   = receberHoje.reduce((s,c)=>s+(parseFloat(c.valor)||0),0);
-    const saldo          = totalEntradas + totalReceber - totalPagar;
-
-    const byFormaPag = {};
-    vendasHoje.forEach(v => { byFormaPag[v.forma_pag||'outros'] = (byFormaPag[v.forma_pag||'outros']||0) + (parseFloat(v.total)||0); });
+    const [caixas, movs] = await Promise.all([getAll('caixa'), getAll('mov_caixa')]);
+    const caixaAberto = caixas.find(c => c.status === 'aberto');
+    const movsAtual = caixaAberto ? movs.filter(m => String(m.caixa_id) === String(caixaAberto.id)) : [];
 
     document.getElementById('pageContent').innerHTML = `
-    <div class="row g-3 mb-4">
-      <div class="col-sm-6 col-xl-3">
-        <div class="stat-card green"><div class="stat-icon"><i class="fas fa-arrow-up"></i></div>
-          <div class="stat-label">Entradas Hoje</div>
-          <div class="stat-value">${fmtMoney(totalEntradas)}</div>
-          <div class="stat-sub">${vendasHoje.length} venda(s)</div></div>
-      </div>
-      <div class="col-sm-6 col-xl-3">
-        <div class="stat-card red"><div class="stat-icon"><i class="fas fa-arrow-down"></i></div>
-          <div class="stat-label">Saídas Hoje</div>
-          <div class="stat-value">${fmtMoney(totalPagar)}</div>
-          <div class="stat-sub">${pagarHoje.length} conta(s) a pagar</div></div>
-      </div>
-      <div class="col-sm-6 col-xl-3">
-        <div class="stat-card blue"><div class="stat-icon"><i class="fas fa-hand-holding-usd"></i></div>
-          <div class="stat-label">A Receber</div>
-          <div class="stat-value">${fmtMoney(totalReceber)}</div>
-          <div class="stat-sub">${receberHoje.length} conta(s)</div></div>
-      </div>
-      <div class="col-sm-6 col-xl-3">
-        <div class="stat-card ${saldo>=0?'green':'red'}"><div class="stat-icon"><i class="fas fa-calculator"></i></div>
-          <div class="stat-label">Saldo do Dia</div>
-          <div class="stat-value">${fmtMoney(saldo)}</div>
-          <div class="stat-sub">${saldo>=0?'Positivo':'Negativo'}</div></div>
+    ${caixaAberto ? `
+    <div class="card mb-4" style="border-left:4px solid #10b981">
+      <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+          <div>
+            <span class="badge bg-success mb-2"><i class="fas fa-circle me-1" style="font-size:8px"></i>CAIXA ABERTO</span>
+            <div class="row g-3 mt-1">
+              <div class="col-sm-4"><small class="text-muted d-block">Abertura</small><strong>${fmtDateTime(caixaAberto.data_abertura)}</strong></div>
+              <div class="col-sm-4"><small class="text-muted d-block">Valor Inicial</small><strong>${fmtMoney(caixaAberto.valor_abertura)}</strong></div>
+              <div class="col-sm-4"><small class="text-muted d-block">Entradas/Suprimentos</small><strong class="text-success">${fmtMoney(movsAtual.filter(m=>['entrada','suprimento'].includes(m.tipo)).reduce((s,m)=>s+(parseFloat(m.valor)||0),0))}</strong></div>
+            </div>
+          </div>
+          <div class="d-flex gap-2 flex-wrap">
+            <button class="btn btn-outline-warning btn-sm" onclick="movCaixa('sangria',${caixaAberto.id})"><i class="fas fa-minus me-1"></i>Sangria</button>
+            <button class="btn btn-outline-success btn-sm" onclick="movCaixa('suprimento',${caixaAberto.id})"><i class="fas fa-plus me-1"></i>Suprimento</button>
+            <button class="btn btn-danger btn-sm" onclick="fecharCaixa(${caixaAberto.id})"><i class="fas fa-lock me-1"></i>Fechar Caixa</button>
+          </div>
+        </div>
       </div>
     </div>
 
-    <div class="row g-3 mb-4">
-      <div class="col-md-6">
-        <div class="card">
-          <div class="card-header"><i class="fas fa-chart-pie text-primary me-2"></i><strong>Vendas por Forma de Pagamento</strong></div>
-          <div class="card-body">
-            ${Object.entries(byFormaPag).length ? Object.entries(byFormaPag).map(([forma,valor])=>`
-            <div class="d-flex justify-content-between align-items-center mb-2">
-              <span class="text-capitalize"><i class="fas fa-${forma==='pix'?'qrcode':forma==='dinheiro'?'money-bill-wave':forma==='fiado'?'handshake':'credit-card'} me-2 text-muted"></i>${forma.replace('_',' ')}</span>
-              <strong>${fmtMoney(valor)}</strong>
-            </div>
-            <div class="progress mb-3" style="height:6px"><div class="progress-bar" style="width:${(valor/totalEntradas*100).toFixed(0)}%;background:#4361ee"></div></div>`).join('')
-            : '<p class="text-muted text-center py-3">Nenhuma venda hoje</p>'}
-          </div>
-        </div>
+    <div class="card mb-4">
+      <div class="card-header"><h6 class="mb-0"><i class="fas fa-history me-2"></i>Movimentações</h6></div>
+      <div class="card-body p-0">
+        <table class="table mb-0">
+          <thead><tr><th class="ps-3">Data</th><th>Tipo</th><th>Descrição</th><th class="text-end pe-3">Valor</th></tr></thead>
+          <tbody>
+          ${movsAtual.length ? movsAtual.slice().reverse().map(m=>{
+            const tc = {entrada:'success',saida:'danger',sangria:'warning',suprimento:'info'};
+            const positivo = ['entrada','suprimento'].includes(m.tipo);
+            return `<tr>
+              <td class="ps-3"><small>${fmtDateTime(m.data)}</small></td>
+              <td><span class="badge bg-${tc[m.tipo]||'secondary'}">${escHtml(m.tipo)}</span></td>
+              <td>${escHtml(m.descricao||'—')}</td>
+              <td class="text-end pe-3 fw-semibold ${positivo?'text-success':'text-danger'}">${positivo?'+':'−'} ${fmtMoney(m.valor)}</td>
+            </tr>`;
+          }).join('') : emptyState('exchange-alt','Nenhuma movimentação neste caixa')}
+          </tbody>
+        </table>
       </div>
-      <div class="col-md-6">
-        <div class="card">
-          <div class="card-header d-flex align-items-center justify-content-between">
-            <div><i class="fas fa-clock text-primary me-2"></i><strong>Últimas Vendas</strong></div>
-            <button class="btn btn-outline-primary btn-sm" onclick="nav('pdv')"><i class="fas fa-plus me-1"></i>Nova Venda</button>
-          </div>
-          <div class="card-body p-0">
-            <div class="table-responsive">
-              <table class="table table-sm mb-0">
-                <thead><tr><th class="ps-3">Cliente</th><th>Forma Pag.</th><th class="text-end pe-3">Total</th></tr></thead>
-                <tbody>
-                ${vendasHoje.length ? vendasHoje.slice().reverse().slice(0,8).map(v=>`<tr>
-                  <td class="ps-3">${escHtml(v.cliente||'Balcão')}</td>
-                  <td><small class="text-capitalize">${escHtml(v.forma_pag||'—')}</small></td>
-                  <td class="text-end pe-3 fw-bold text-success">${fmtMoney(v.total)}</td></tr>`).join('')
-                : `<tr><td colspan="3" class="text-center text-muted py-4">Nenhuma venda hoje</td></tr>`}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    </div>` : `
+    <div class="text-center py-5">
+      <i class="fas fa-cash-register fa-5x text-muted opacity-25 mb-4 d-block"></i>
+      <h5 class="text-muted">Nenhum caixa aberto</h5>
+      <button class="btn btn-success btn-lg mt-3" onclick="abrirCaixa()"><i class="fas fa-lock-open me-2"></i>Abrir Caixa</button>
+    </div>`}
 
     <div class="card">
       <div class="card-header d-flex align-items-center justify-content-between">
-        <div><i class="fas fa-history text-primary me-2"></i><strong>Movimentação Completa — ${hoje}</strong></div>
-        <button class="btn btn-outline-secondary btn-sm" onclick="renderCaixa()"><i class="fas fa-sync me-1"></i>Atualizar</button>
+        <h6 class="mb-0"><i class="fas fa-clock me-2"></i>Histórico de Caixas</h6>
+        ${!caixaAberto?`<button class="btn btn-success btn-sm" onclick="abrirCaixa()"><i class="fas fa-lock-open me-1"></i>Abrir Caixa</button>`:''}
       </div>
       <div class="card-body p-0">
         <div class="table-responsive">
           <table class="table mb-0">
-            <thead><tr><th class="ps-3">Descrição</th><th>Tipo</th><th>Hora</th><th class="text-end pe-3">Valor</th></tr></thead>
+            <thead><tr><th class="ps-3">Abertura</th><th>Fechamento</th><th>Valor Inicial</th><th>Valor Final</th><th>Status</th></tr></thead>
             <tbody>
-            ${[
-              ...vendasHoje.map(v=>({desc:`PDV — ${v.cliente||'Balcão'}`, tipo:'Entrada', cor:'text-success', valor:parseFloat(v.total)||0, hora:v.created_at||''})),
-              ...pagarHoje.map(c=>({desc:c.descricao||'Conta a pagar', tipo:'Saída', cor:'text-danger', valor:parseFloat(c.valor)||0, hora:c.created_at||''})),
-              ...receberHoje.map(c=>({desc:c.descricao||'Conta a receber', tipo:'A Receber', cor:'text-primary', valor:parseFloat(c.valor)||0, hora:c.created_at||''}))
-            ].map(m=>`<tr>
-              <td class="ps-3">${escHtml(m.desc)}</td>
-              <td><span class="badge ${m.tipo==='Entrada'?'bg-success':m.tipo==='Saída'?'bg-danger':'bg-primary'}">${m.tipo}</span></td>
-              <td><small class="text-muted">${m.hora?new Date(m.hora).toLocaleTimeString('pt-BR'):'—'}</small></td>
-              <td class="text-end pe-3 fw-bold ${m.cor}">${m.tipo==='Saída'?'−':'+'} ${fmtMoney(m.valor)}</td></tr>`).join('')
-            || `<tr><td colspan="4" class="text-center text-muted py-4">Nenhuma movimentação hoje</td></tr>`}
+            ${caixas.length ? caixas.slice().reverse().map(c=>`<tr>
+              <td class="ps-3">${fmtDateTime(c.data_abertura)}</td>
+              <td>${c.data_fechamento?fmtDateTime(c.data_fechamento):'—'}</td>
+              <td>${fmtMoney(c.valor_abertura)}</td>
+              <td>${c.data_fechamento?fmtMoney(c.valor_fechamento):'—'}</td>
+              <td>${badgeStatus(c.status)}</td></tr>`).join('')
+            : emptyState('calculator','Nenhum caixa registrado')}
             </tbody>
           </table>
         </div>
       </div>
     </div>`;
+  } catch(e) { toast(e.message,'danger'); }
+}
+
+function abrirCaixa() {
+  openModal('<i class="fas fa-lock-open me-2"></i>Abrir Caixa',
+    `<label class="form-label fw-semibold">Valor de Abertura (R$)</label>
+     <div class="input-group"><span class="input-group-text">R$</span><input type="number" id="cxAbertura" class="form-control" step="0.01" min="0" value="0.00"></div>`,
+    `<button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+     <button class="btn btn-success" onclick="confirmAbrirCaixa()"><i class="fas fa-check me-1"></i>Abrir</button>`,
+    'sm'
+  );
+}
+
+async function confirmAbrirCaixa() {
+  const valor = parseFloat(document.getElementById('cxAbertura').value)||0;
+  try {
+    await insert('caixa', { data_abertura: new Date().toISOString(), valor_abertura: valor, status: 'aberto', ativo: 1 });
+    toast('Caixa aberto!'); closeModal(); Cache.clear('caixa'); renderCaixa();
+  } catch(e) { toast(e.message,'danger'); }
+}
+
+function movCaixa(tipo, caixaId) {
+  openModal(`<i class="fas fa-exchange-alt me-2"></i>${tipo==='sangria'?'Sangria (retirada)':'Suprimento (reforço)'}`,
+    `<div class="mb-3"><label class="form-label fw-semibold">Valor (R$)</label>
+      <div class="input-group"><span class="input-group-text">R$</span>
+        <input type="number" id="movValor" class="form-control" step="0.01" min="0.01"></div></div>
+     <div><label class="form-label">Descrição</label><input type="text" id="movDesc" class="form-control" placeholder="Motivo..."></div>`,
+    `<button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+     <button class="btn btn-primary" onclick="confirmMovCaixa('${tipo}',${caixaId})"><i class="fas fa-check me-1"></i>Confirmar</button>`,
+    'sm'
+  );
+}
+
+async function confirmMovCaixa(tipo, caixaId) {
+  const valor = parseFloat(document.getElementById('movValor').value)||0;
+  if (valor <= 0) { toast('Valor inválido','danger'); return; }
+  const desc = document.getElementById('movDesc').value.trim();
+  try {
+    await insert('mov_caixa', { caixa_id: caixaId, tipo, valor, descricao: desc, data: new Date().toISOString(), ativo: 1 });
+    toast('Movimentação registrada!'); closeModal(); Cache.clear('mov_caixa'); renderCaixa();
+  } catch(e) { toast(e.message,'danger'); }
+}
+
+async function fecharCaixa(id) {
+  const valor = prompt('Informe o valor contado em caixa (R$):', '0.00');
+  if (valor === null) return;
+  try {
+    await update('caixa', id, { status: 'fechado', data_fechamento: new Date().toISOString(), valor_fechamento: parseFloat(valor)||0 });
+    toast('Caixa fechado!'); Cache.clear('caixa'); renderCaixa();
   } catch(e) { toast(e.message,'danger'); }
 }

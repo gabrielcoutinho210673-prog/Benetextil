@@ -31,7 +31,7 @@ async function renderRelUniforme() {
     const dados = await getAll('clientes');
     const hoje  = new Date(); hoje.setHours(0,0,0,0);
     const total = dados.reduce((s,p)=>s+(parseFloat(p.valor_total)||0),0);
-    const custo = dados.reduce((s,p)=>s+(parseFloat(p.custo_total)||0),0);
+    const custo = dados.reduce((s,p)=>s+(parseFloat(p.preco_custo_total)||0),0);
     const lucro = total - custo;
     const atrasados = dados.filter(p=>p.data_entrega&&new Date(p.data_entrega+'T00:00:00')<hoje).length;
     const entregues = dados.filter(p=>p.data_entrega&&new Date(p.data_entrega+'T00:00:00')<=hoje).length;
@@ -63,7 +63,7 @@ async function renderRelUniforme() {
             <th>Valor</th><th>Custo</th><th>Lucro</th></tr></thead>
           <tbody>
           ${dados.length ? dados.slice().reverse().map(p=>{
-            const l = (parseFloat(p.valor_total)||0)-(parseFloat(p.custo_total)||0);
+            const l = (parseFloat(p.valor_total)||0)-(parseFloat(p.preco_custo_total)||0);
             const ent = p.data_entrega?new Date(p.data_entrega+'T00:00:00'):null;
             const atrasado = ent && ent < hoje;
             return `<tr class="${atrasado?'table-danger':''}">
@@ -72,7 +72,7 @@ async function renderRelUniforme() {
               <td><small>${fmtDate(p.data_pedido)}</small></td>
               <td class="${atrasado?'text-danger fw-bold':''}"><small>${fmtDate(p.data_entrega)}${atrasado?' ⚠️':''}</small></td>
               <td class="text-success fw-semibold">${fmtMoney(p.valor_total)}</td>
-              <td class="text-danger">${fmtMoney(p.custo_total)}</td>
+              <td class="text-danger">${fmtMoney(p.preco_custo_total)}</td>
               <td class="${l>=0?'text-success':'text-danger'} fw-bold">${fmtMoney(l)}</td></tr>`;
           }).join('') : `<tr><td colspan="7" class="text-center text-muted py-4">Nenhum pedido</td></tr>`}
           </tbody>
@@ -219,10 +219,10 @@ async function renderRelEstoque() {
   const el = document.getElementById('relConteudo');
   try {
     const produtos = await getAll('produtos');
-    const totalItens = produtos.reduce((s,p)=>s+(parseFloat(p.estoque_atual)||0),0);
-    const totalValor = produtos.reduce((s,p)=>s+(parseFloat(p.estoque_atual)||0)*(parseFloat(p.custo)||0),0);
-    const abaixoMin  = produtos.filter(p=>(parseFloat(p.estoque_atual)||0)<=(parseFloat(p.estoque_minimo)||0));
-    const semEstoque = produtos.filter(p=>(parseFloat(p.estoque_atual)||0)===0);
+    const totalItens = produtos.reduce((s,p)=>s+(parseFloat(p.estoque)||0),0);
+    const totalValor = produtos.reduce((s,p)=>s+(parseFloat(p.estoque)||0)*(parseFloat(p.preco_custo)||0),0);
+    const abaixoMin  = produtos.filter(p=>(parseFloat(p.estoque)||0)<=(parseFloat(p.estoque_minimo)||0));
+    const semEstoque = produtos.filter(p=>(parseFloat(p.estoque)||0)===0);
 
     el.innerHTML = `
     <div class="row g-3 mb-4">
@@ -240,7 +240,7 @@ async function renderRelEstoque() {
       <i class="fas fa-exclamation-triangle me-2"></i>
       <strong>${abaixoMin.length} produto(s) abaixo do estoque mínimo:</strong>
       <div class="mt-1 d-flex flex-wrap gap-2">
-        ${abaixoMin.map(p=>`<span class="badge bg-warning text-dark">${escHtml(p.nome)} (${parseFloat(p.estoque_atual)||0}/${parseFloat(p.estoque_minimo)||0})</span>`).join('')}
+        ${abaixoMin.map(p=>`<span class="badge bg-warning text-dark">${escHtml(p.nome)} (${parseFloat(p.estoque)||0}/${parseFloat(p.estoque_minimo)||0})</span>`).join('')}
       </div>
     </div>` : ''}
     <div class="card">
@@ -251,10 +251,10 @@ async function renderRelEstoque() {
             <th>Atual</th><th>Mínimo</th><th>Un.</th><th>Custo</th><th>Valor Total</th></tr></thead>
           <tbody>
           ${produtos.length ? produtos.map(p=>{
-            const est = parseFloat(p.estoque_atual)||0;
+            const est = parseFloat(p.estoque)||0;
             const min = parseFloat(p.estoque_minimo)||0;
             const alerta = est <= min;
-            const valor = est * (parseFloat(p.custo)||0);
+            const valor = est * (parseFloat(p.preco_custo)||0);
             return `<tr class="${alerta?'table-warning':''}">
               <td class="ps-3 fw-semibold">${escHtml(p.nome||'—')}</td>
               <td><code>${escHtml(p.codigo||'—')}</code></td>
@@ -262,7 +262,7 @@ async function renderRelEstoque() {
               <td class="${est<=0?'text-danger fw-bold':alerta?'text-warning fw-bold':'fw-bold'}">${est}</td>
               <td>${min||'—'}</td>
               <td>${escHtml(p.unidade||'un')}</td>
-              <td>${p.custo?fmtMoney(p.custo):'—'}</td>
+              <td>${p.preco_custo?fmtMoney(p.preco_custo):'—'}</td>
               <td class="fw-semibold">${valor>0?fmtMoney(valor):'—'}</td></tr>`;
           }).join('') : `<tr><td colspan="8" class="text-center text-muted py-4">Nenhum produto cadastrado</td></tr>`}
           </tbody>
