@@ -2,6 +2,7 @@
 let finTab    = 'pagar';
 let finSearch = '';
 let finFiltro = 'todos';
+let funcMes   = null;
 
 function renderFinanceiro(tab) {
   if (tab) finTab = tab;
@@ -17,6 +18,10 @@ function renderFinanceiro(tab) {
         <i class="fas fa-hand-holding-usd me-2 text-success"></i>Contas a Receber</a>
     </li>
     <li class="nav-item">
+      <a class="nav-link ${finTab==='funcionarios'?'active':''}" href="#" onclick="renderFinanceiro('funcionarios');return false">
+        <i class="fas fa-users me-2 text-warning"></i>Funcionários</a>
+    </li>
+    <li class="nav-item">
       <a class="nav-link ${finTab==='resumo'?'active':''}" href="#" onclick="renderFinanceiro('resumo');return false">
         <i class="fas fa-chart-line me-2 text-primary"></i>Resumo</a>
     </li>
@@ -26,7 +31,116 @@ function renderFinanceiro(tab) {
   finFiltro = 'todos';
   if (finTab === 'pagar')   renderContasPagar();
   else if (finTab === 'receber') renderContasReceber();
+  else if (finTab === 'funcionarios') renderFinFuncionarios();
   else renderFinanceiroResumo();
+}
+
+async function renderFinFuncionarios() {
+  const el = document.getElementById('finConteudo');
+  if (!el) return;
+  try {
+    const hoje = new Date();
+    const mesAtual  = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
+    const mesFiltro = funcMes || mesAtual;
+
+    const contasPagar = await getAll('contas_pagar');
+    const doMes = contasPagar.filter(c => c.fornecedor && c.fornecedor !== 'Benetextil' && c.vencimento && c.vencimento.startsWith(mesFiltro));
+
+    const porFunc = {};
+    doMes.forEach(c => {
+      const nome = c.fornecedor;
+      if (!porFunc[nome]) porFunc[nome] = { pendente: 0, pago: 0, itens: [] };
+      const val = parseFloat(c.valor)||0;
+      porFunc[nome][c.status==='pago'?'pago':'pendente'] += val;
+      porFunc[nome].itens.push(c);
+    });
+
+    const nomes = Object.keys(porFunc).sort();
+    const totalPendente = nomes.reduce((s,n)=>s+porFunc[n].pendente,0);
+    const totalPago     = nomes.reduce((s,n)=>s+porFunc[n].pago,0);
+
+    const meses = [];
+    for (let i=0;i<12;i++) { const d=new Date(hoje.getFullYear(),hoje.getMonth()-i,1); meses.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`); }
+
+    el.innerHTML = `
+    <div class="d-flex align-items-center gap-3 mb-4 flex-wrap">
+      <h5 class="mb-0"><i class="fas fa-users me-2 text-primary"></i>Folha de Pagamento</h5>
+      <select class="form-select form-select-sm" style="max-width:200px" onchange="funcMes=this.value;renderFinFuncionarios()">
+        ${meses.map(m=>`<option value="${m}" ${m===mesFiltro?'selected':''}>${new Date(m+'-02').toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}</option>`).join('')}
+      </select>
+    </div>
+
+    <div class="row g-3 mb-4">
+      <div class="col-sm-4"><div class="p-3 rounded text-center" style="background:#fee2e2;border:1px solid #dc2626">
+        <div class="small text-muted">A Pagar este mês</div><div class="fs-5 fw-bold text-danger">${fmtMoney(totalPendente)}</div></div></div>
+      <div class="col-sm-4"><div class="p-3 rounded text-center" style="background:#d1fae5;border:1px solid #10b981">
+        <div class="small text-muted">Já Pago este mês</div><div class="fs-5 fw-bold text-success">${fmtMoney(totalPago)}</div></div></div>
+      <div class="col-sm-4"><div class="p-3 rounded text-center" style="background:#eef2ff;border:1px solid #4361ee">
+        <div class="small text-muted">Funcionário(s)</div><div class="fs-5 fw-bold text-primary">${nomes.length}</div></div></div>
+    </div>
+
+    ${nomes.length === 0 ? `<div class="alert alert-info">Nenhum lançamento encontrado para este mês. Os lançamentos são criados automaticamente ao salvar pedidos de uniforme, sublimação, etc.</div>` :
+      nomes.map(nome => {
+        const f = porFunc[nome];
+        const total = f.pendente + f.pago;
+        const pct = total > 0 ? Math.round((f.pago/total)*100) : 0;
+        return `
+        <div class="card mb-3">
+          <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-2">
+              <div style="width:36px;height:36px;border-radius:50%;background:#4361ee22;display:flex;align-items:center;justify-content:center">
+                <i class="fas fa-user text-primary"></i>
+              </div>
+              <div>
+                <div class="fw-bold">${escHtml(nome)}</div>
+                <small class="text-muted">${f.itens.length} lançamento(s) no mês</small>
+              </div>
+            </div>
+            <div class="text-end">
+              <div class="fw-bold fs-5 ${f.pendente>0?'text-danger':'text-success'}">${fmtMoney(f.pendente > 0 ? f.pendente : f.pago)}</div>
+              <small class="${f.pendente>0?'text-danger':'text-success'}">${f.pendente>0?'A pagar':'Pago'}</small>
+            </div>
+          </div>
+          <div class="card-body pt-2 pb-2">
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <div class="progress flex-grow-1" style="height:8px">
+                <div class="progress-bar bg-success" style="width:${pct}%"></div>
+              </div>
+              <small class="text-muted">${pct}% pago</small>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-sm mb-0">
+                <thead><tr><th>Descrição</th><th class="text-end">Valor</th><th class="text-center">Status</th><th class="text-center">Ação</th></tr></thead>
+                <tbody>
+                ${f.itens.map(it=>`<tr>
+                  <td><small>${escHtml(it.descricao||'')}</small></td>
+                  <td class="text-end fw-semibold">${fmtMoney(it.valor)}</td>
+                  <td class="text-center"><span class="badge ${it.status==='pago'?'bg-success':'bg-warning text-dark'}">${it.status==='pago'?'Pago':'Pendente'}</span></td>
+                  <td class="text-center">
+                    ${it.status!=='pago'?`<button class="btn btn-xs btn-success btn-sm py-0 px-2" onclick="baixarFuncionario(${it.id})"><i class="fas fa-check me-1"></i>Pagar</button>`
+                    :`<span class="text-success"><i class="fas fa-check-double"></i></span>`}
+                  </td>
+                </tr>`).join('')}
+                </tbody>
+                <tfoot><tr class="table-light">
+                  <td><strong>Total</strong></td>
+                  <td class="text-end fw-bold">${fmtMoney(total)}</td>
+                  <td colspan="2"></td>
+                </tr></tfoot>
+              </table>
+            </div>
+          </div>
+        </div>`;
+      }).join('')
+    }`;
+  } catch(e) { el.innerHTML = `<div class="alert alert-danger">${escHtml(e.message)}</div>`; }
+}
+
+async function baixarFuncionario(id) {
+  if (!confirm('Confirmar pagamento?')) return;
+  await update('contas_pagar', id, {status:'pago'});
+  toast('Pagamento registrado!');
+  renderFinFuncionarios();
 }
 
 async function renderContasPagar(search, filtro) {
