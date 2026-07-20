@@ -18,12 +18,12 @@ function renderFinanceiro(tab) {
         <i class="fas fa-hand-holding-usd me-2 text-success"></i>Contas a Receber</a>
     </li>
     <li class="nav-item">
-      <a class="nav-link ${finTab==='funcionarios'?'active':''}" href="#" onclick="renderFinanceiro('funcionarios');return false">
-        <i class="fas fa-users me-2 text-warning"></i>Funcionários</a>
+      <a class="nav-link ${finTab==='resumo'?'active':''}" href="#" onclick="renderFinanceiro('resumo');return false">
+        <i class="fas fa-chart-line me-2 text-primary"></i>Fluxo de Caixa</a>
     </li>
     <li class="nav-item">
-      <a class="nav-link ${finTab==='resumo'?'active':''}" href="#" onclick="renderFinanceiro('resumo');return false">
-        <i class="fas fa-chart-line me-2 text-primary"></i>Resumo</a>
+      <a class="nav-link ${finTab==='funcionarios'?'active':''}" href="#" onclick="renderFinanceiro('funcionarios');return false">
+        <i class="fas fa-users me-2 text-warning"></i>Funcionários</a>
     </li>
   </ul>
   <div id="finConteudo">${loading()}</div>`;
