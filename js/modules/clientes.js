@@ -722,20 +722,25 @@ async function salvarCliente(id) {
   };
 
   try {
+    let pedidoId = id;
     if (id) {
       await update('clientes', id, data);
     } else {
-      await insert('clientes', data);
+      const novo = await insert('clientes', data);
+      pedidoId = novo.id;
     }
 
     const hoje = localDateStr();
     const venc = data.data_entrega || hoje;
     const desc = `${data.tipo_peca||'Uniforme'} — ${nome}`;
+    // identificador único do pedido — usado pra achar os custos ligados a ELE,
+    // e não a outro pedido que por acaso tenha o mesmo tipo de peça + nome
+    const tag  = `#${pedidoId}`;
 
     if (!id && data.valor_total > 0) {
       const statusRec = data.entrada >= data.valor_total ? 'pago' : 'pendente';
       await insert('contas_receber', {
-        descricao: `Venda: ${desc}`, cliente: nome,
+        descricao: `Venda: ${desc} ${tag}`, cliente: nome,
         valor: data.valor_total, vencimento: venc, status: statusRec, ativo: 1
       });
     }
@@ -784,19 +789,28 @@ async function salvarCliente(id) {
 
     let descricoesJaPagas = new Set();
     if (id) {
-      const { data: existentes } = await supabaseClient
-        .from('contas_pagar').select('id,descricao,status').like('descricao', `%— ${desc}`);
-      const pendentesIds = (existentes||[]).filter(e=>e.status==='pendente').map(e=>e.id);
+      // busca por duas formas: pelo número do pedido (#id, forma nova e confiável) e
+      // pelo texto antigo (tipo de peça + nome, forma antiga — mantida só pra não perder
+      // o vínculo com lançamentos criados antes desta correção existir)
+      const [porTag, porTexto] = await Promise.all([
+        supabaseClient.from('contas_pagar').select('id,descricao,status').like('descricao', `% ${tag}`),
+        supabaseClient.from('contas_pagar').select('id,descricao,status').like('descricao', `%— ${desc}`)
+      ]);
+      const existentes = Array.from(
+        new Map([...(porTag.data||[]), ...(porTexto.data||[])].map(e=>[e.id,e])).values()
+      );
+      const pendentesIds = existentes.filter(e=>e.status==='pendente').map(e=>e.id);
       if (pendentesIds.length > 0) {
         await supabaseClient.from('contas_pagar').delete().in('id', pendentesIds);
       }
       // custos já pagos não são recriados, pra não duplicar cobrança de algo que já foi quitado
-      descricoesJaPagas = new Set((existentes||[]).filter(e=>e.status==='pago').map(e=>e.descricao));
+      descricoesJaPagas = new Set(existentes.filter(e=>e.status==='pago').map(e=>e.descricao));
     }
 
     for (const c of custos) {
-      const descricaoCompleta = `${c.label} — ${desc}`;
-      if (descricoesJaPagas.has(descricaoCompleta)) continue;
+      const descricaoCompleta = `${c.label} — ${desc} ${tag}`;
+      const jaEstaPago = [...descricoesJaPagas].some(d => d === descricaoCompleta || d === `${c.label} — ${desc}`);
+      if (jaEstaPago) continue;
       await insert('contas_pagar', {
         descricao:  descricaoCompleta,
         fornecedor: c.fornecedor || 'Benetextil',
