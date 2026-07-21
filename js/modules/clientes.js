@@ -791,18 +791,15 @@ async function salvarCliente(id) {
     if (id) {
       // busca por duas formas: pelo número do pedido (#id, forma nova e confiável) e
       // pelo texto antigo (tipo de peça + nome, forma antiga — mantida só pra não perder
-      // o vínculo com lançamentos criados antes desta correção existir)
-      const [porTag, porTexto] = await Promise.all([
-        supabaseClient.from('contas_pagar').select('id,descricao,status').like('descricao', `% ${tag}`),
-        supabaseClient.from('contas_pagar').select('id,descricao,status').like('descricao', `%— ${desc}`)
-      ]);
-      const existentes = Array.from(
-        new Map([...(porTag.data||[]), ...(porTexto.data||[])].map(e=>[e.id,e])).values()
-      );
+      // o vínculo com lançamentos criados antes desta correção existir).
+      // Usa getAll (não supabaseClient direto) pra respeitar cache e modo demonstração.
+      const todosPagar = await getAll('contas_pagar');
+      const existentes = todosPagar.filter(e => {
+        const d = e.descricao || '';
+        return d.includes(` ${tag}`) || d.endsWith(`— ${desc}`);
+      });
       const pendentesIds = existentes.filter(e=>e.status==='pendente').map(e=>e.id);
-      if (pendentesIds.length > 0) {
-        await supabaseClient.from('contas_pagar').delete().in('id', pendentesIds);
-      }
+      for (const pid of pendentesIds) { await remove('contas_pagar', pid); }
       // custos já pagos não são recriados, pra não duplicar cobrança de algo que já foi quitado
       descricoesJaPagas = new Set(existentes.filter(e=>e.status==='pago').map(e=>e.descricao));
     }
