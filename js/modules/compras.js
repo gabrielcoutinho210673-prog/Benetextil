@@ -1,5 +1,6 @@
 'use strict';
 let comprasSearch = '';
+let salvandoCompra = false;
 
 async function renderCompras(search) {
   if (search !== undefined) comprasSearch = search;
@@ -94,6 +95,7 @@ function atualizarPreviewParcelasCompra() {
 }
 
 async function salvarCompras(id) {
+  if (salvandoCompra) return; // trava contra duplo clique / clique repetido enquanto salva
   const descricao = document.getElementById('cDescricao').value.trim();
   const valorTotal = parseFloat(document.getElementById('cValor').value)||0;
   const dataCompra = document.getElementById('cData').value;
@@ -101,6 +103,7 @@ async function salvarCompras(id) {
   const fornecedor = document.getElementById('cFornecedor').value.trim();
   if (!descricao) { toast('Descrição obrigatória','danger'); return; }
   if (!valorTotal) { toast('Valor obrigatório','danger'); return; }
+  salvandoCompra = true;
   const obj = {
     descricao,
     fornecedor,
@@ -133,6 +136,7 @@ async function salvarCompras(id) {
     }
     closeModal(); renderCompras();
   } catch(e) { toast(e.message,'danger'); }
+  finally { salvandoCompra = false; }
 }
 
 async function delCompras(id, desc) {

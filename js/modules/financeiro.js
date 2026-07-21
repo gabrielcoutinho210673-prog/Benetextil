@@ -438,11 +438,13 @@ async function salvarContaFin(tipo, id) {
   const pref  = tipo === 'pagar' ? 'fp' : 'fr';
   const desc  = document.getElementById(`${pref}Desc`).value.trim();
   if (!desc) { toast('Descrição obrigatória','danger'); return; }
+  const status = document.getElementById(`${pref}Status`).value;
   const obj = {
     descricao:  desc,
     vencimento: document.getElementById(`${pref}Venc`).value || null,
     valor:      parseFloat(document.getElementById(`${pref}Valor`).value)||0,
-    status:     document.getElementById(`${pref}Status`).value,
+    status,
+    data_pag:   status==='pago' ? localDateStr() : null,
     observacao: document.getElementById(`${pref}Obs`).value.trim(),
     ativo: 1
   };
