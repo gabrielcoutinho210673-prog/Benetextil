@@ -1,5 +1,6 @@
 'use strict';
 let sublimacaoSearch = '';
+let salvandoSublimacao = false;
 
 async function renderSublimacao(search) {
   if (search !== undefined) sublimacaoSearch = search;
@@ -271,6 +272,8 @@ function calcTotalSublimacao() {
 }
 
 async function salvarSublimacao(id) {
+  if (salvandoSublimacao) return; // trava contra duplo clique / clique repetido enquanto salva
+  salvandoSublimacao = true;
   const descricao = document.getElementById('sDesc').value.trim();
   const data = {
     descricao,
@@ -390,6 +393,7 @@ async function salvarSublimacao(id) {
     }
     closeModal(); renderSublimacao();
   } catch(e) { toast(e.message,'danger'); }
+  finally { salvandoSublimacao = false; }
 }
 
 async function delSublimacao(id, desc) {
