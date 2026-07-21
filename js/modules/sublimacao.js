@@ -329,7 +329,7 @@ async function salvarSublimacao(id) {
             descricao:  `${tag} — ${item.label}: ${rotulo}`,
             fornecedor: item.fornecedor,
             valor:      item.val,
-            vencimento: localDateStr(),
+            vencimento: data.data_entrega || data.data_pedido || localDateStr(),
             status:     'pendente',
             ativo: 1
           });
@@ -357,7 +357,7 @@ async function salvarSublimacao(id) {
       const tag = `Sublimação #${novo.id}`;
       const totalGasto = data.uber + data.almoco + data.gasolina + data.estacionamento + data.brim + data.mao_obra_anderson;
       if (totalGasto > 0) {
-        const hoje = localDateStr();
+        const vencCusto = data.data_entrega || data.data_pedido || localDateStr();
         const itens = [
           { label: 'Uber',               val: data.uber,              fornecedor: 'Benetextil' },
           { label: 'Almoço',             val: data.almoco,            fornecedor: 'Benetextil' },
@@ -371,7 +371,7 @@ async function salvarSublimacao(id) {
             descricao:  `${tag} — ${item.label}: ${rotulo}`,
             fornecedor: item.fornecedor,
             valor:      item.val,
-            vencimento: hoje,
+            vencimento: vencCusto,
             status:     'pendente',
             ativo: 1
           });
