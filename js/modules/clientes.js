@@ -2,6 +2,7 @@
 let clienteSearch = '';
 let clienteFiltro = 'todos';
 let clienteMes    = '';
+let salvandoCliente = false;
 
 const AVIAMENTOS_LIST = [
   {key:'botao',           label:'BOTÃO'},
@@ -605,8 +606,10 @@ function calcResumo() {
 }
 
 async function salvarCliente(id) {
+  if (salvandoCliente) return; // trava contra duplo clique / clique repetido enquanto salva
   const nome = document.getElementById('cNome').value.trim();
   if (!nome) { toast('Nome é obrigatório','danger'); return; }
+  salvandoCliente = true;
 
   const silkQtd    = parseInt(document.getElementById('silkQtd')?.value)||0;
   const bordadoQtd = parseInt(document.getElementById('bordadoQtd')?.value)||0;
@@ -811,6 +814,7 @@ async function salvarCliente(id) {
     }
     closeModal(); renderClientes();
   } catch(e) { toast(e.message,'danger'); }
+  finally { salvandoCliente = false; }
 }
 
 async function delCliente(id, nome) {
