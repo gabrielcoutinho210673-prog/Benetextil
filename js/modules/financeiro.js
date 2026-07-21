@@ -4,6 +4,7 @@ let finSearch = '';
 let finFiltro = 'todos';
 let finMes    = '';
 let funcMes   = null;
+let salvandoContaFin = false;
 
 // Monta a lista de meses do filtro: sempre inclui janeiro até o mês atual do
 // ano corrente, e também qualquer outro mês que tenha lançamento (datas mal
@@ -390,18 +391,24 @@ function formContaPagar(c={}) {
       <input class="form-control" id="fpDesc" value="${escHtml(c.descricao||'')}" placeholder="Ex: Fatura de energia..."></div>
     <div class="col-md-6"><label class="form-label">FORNECEDOR</label>
       <input class="form-control" id="fpForn" value="${escHtml(c.fornecedor||'')}"></div>
-    <div class="col-md-3"><label class="form-label fw-semibold">VENCIMENTO</label>
+    <div class="col-md-3"><label class="form-label fw-semibold">${c.id?'VENCIMENTO':'1º VENCIMENTO'}</label>
       <input type="date" class="form-control" id="fpVenc" value="${escHtml(c.vencimento||localDateStr())}"></div>
-    <div class="col-md-3"><label class="form-label fw-semibold">VALOR (R$)</label>
+    <div class="col-md-3"><label class="form-label fw-semibold">VALOR ${c.id?'':'TOTAL '}(R$)</label>
       <div class="input-group"><span class="input-group-text">R$</span>
-        <input type="number" class="form-control" id="fpValor" step="0.01" min="0" value="${c.valor||''}"></div></div>
+        <input type="number" class="form-control" id="fpValor" step="0.01" min="0" value="${c.valor||''}" oninput="atualizarPreviewParcelasFin('fp')"></div></div>
     <div class="col-md-4"><label class="form-label fw-semibold">STATUS</label>
       <select class="form-select" id="fpStatus">
         <option value="pendente" ${c.status==='pendente'||!c.status?'selected':''}>Pendente</option>
         <option value="pago" ${c.status==='pago'?'selected':''}>Pago</option>
       </select></div>
+    <div class="col-md-4"><label class="form-label fw-semibold">PARCELAMENTO</label>
+      <select class="form-select" id="fpParcelas" onchange="atualizarPreviewParcelasFin('fp')" ${c.id?'disabled':''}>
+        ${[1,2,3,4,5,6].map(n=>`<option value="${n}">${n===1?'À Vista (1x)':n+'x'}</option>`).join('')}
+      </select></div>
+    <div class="col-12" id="fpPreviewParcelas"></div>
     <div class="col-12"><label class="form-label">OBSERVAÇÃO</label>
       <textarea class="form-control" id="fpObs" rows="2">${escHtml(c.observacao||'')}</textarea></div>
+    ${c.id?'<div class="col-12"><small class="text-muted"><i class="fas fa-info-circle me-1"></i>Parcelamento só está disponível ao criar uma conta nova.</small></div>':''}
   </div>`,
   `<button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
    <button class="btn btn-danger" onclick="salvarContaFin('pagar',${c.id||0})"><i class="fas fa-save me-1"></i>${c.id?'Atualizar':'Salvar'}</button>`
@@ -415,48 +422,87 @@ function formContaReceber(c={}) {
       <input class="form-control" id="frDesc" value="${escHtml(c.descricao||'')}" placeholder="Ex: Pedido uniforme..."></div>
     <div class="col-md-6"><label class="form-label">CLIENTE</label>
       <input class="form-control" id="frCliente" value="${escHtml(c.cliente||'')}"></div>
-    <div class="col-md-3"><label class="form-label fw-semibold">VENCIMENTO</label>
+    <div class="col-md-3"><label class="form-label fw-semibold">${c.id?'VENCIMENTO':'1º VENCIMENTO'}</label>
       <input type="date" class="form-control" id="frVenc" value="${escHtml(c.vencimento||localDateStr())}"></div>
-    <div class="col-md-3"><label class="form-label fw-semibold">VALOR (R$)</label>
+    <div class="col-md-3"><label class="form-label fw-semibold">VALOR ${c.id?'':'TOTAL '}(R$)</label>
       <div class="input-group"><span class="input-group-text">R$</span>
-        <input type="number" class="form-control" id="frValor" step="0.01" min="0" value="${c.valor||''}"></div></div>
+        <input type="number" class="form-control" id="frValor" step="0.01" min="0" value="${c.valor||''}" oninput="atualizarPreviewParcelasFin('fr')"></div></div>
     <div class="col-md-4"><label class="form-label fw-semibold">STATUS</label>
       <select class="form-select" id="frStatus">
         <option value="pendente" ${c.status==='pendente'||!c.status?'selected':''}>Pendente</option>
         <option value="pago" ${c.status==='pago'?'selected':''}>Recebido</option>
       </select></div>
+    <div class="col-md-4"><label class="form-label fw-semibold">PARCELAMENTO</label>
+      <select class="form-select" id="frParcelas" onchange="atualizarPreviewParcelasFin('fr')" ${c.id?'disabled':''}>
+        ${[1,2,3,4,5,6].map(n=>`<option value="${n}">${n===1?'À Vista (1x)':n+'x'}</option>`).join('')}
+      </select></div>
+    <div class="col-12" id="frPreviewParcelas"></div>
     <div class="col-12"><label class="form-label">OBSERVAÇÃO</label>
       <textarea class="form-control" id="frObs" rows="2">${escHtml(c.observacao||'')}</textarea></div>
+    ${c.id?'<div class="col-12"><small class="text-muted"><i class="fas fa-info-circle me-1"></i>Parcelamento só está disponível ao criar uma conta nova.</small></div>':''}
   </div>`,
   `<button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
    <button class="btn btn-success" onclick="salvarContaFin('receber',${c.id||0})"><i class="fas fa-save me-1"></i>${c.id?'Atualizar':'Salvar'}</button>`
   );
 }
 
+function atualizarPreviewParcelasFin(pref) {
+  const n = parseInt(document.getElementById(`${pref}Parcelas`)?.value)||1;
+  const total = parseFloat(document.getElementById(`${pref}Valor`)?.value)||0;
+  const el = document.getElementById(`${pref}PreviewParcelas`);
+  if (!el) return;
+  if (n <= 1 || total === 0) { el.innerHTML=''; return; }
+  const parcela = total / n;
+  el.innerHTML = `<div class="p-2 rounded" style="background:#f0f4ff;border:1px solid #c7d2fe;font-size:0.85rem">
+    <strong>${n}x de ${parcela.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</strong>
+    — vencimentos mensais a partir do 1º vencimento acima
+  </div>`;
+}
+
 async function salvarContaFin(tipo, id) {
+  if (salvandoContaFin) return; // trava contra duplo clique / clique repetido enquanto salva
   const table = tipo === 'pagar' ? 'contas_pagar' : 'contas_receber';
   const pref  = tipo === 'pagar' ? 'fp' : 'fr';
   const desc  = document.getElementById(`${pref}Desc`).value.trim();
   if (!desc) { toast('Descrição obrigatória','danger'); return; }
-  const status = document.getElementById(`${pref}Status`).value;
-  const obj = {
-    descricao:  desc,
-    vencimento: document.getElementById(`${pref}Venc`).value || null,
-    valor:      parseFloat(document.getElementById(`${pref}Valor`).value)||0,
-    status,
-    data_pag:   status==='pago' ? localDateStr() : null,
-    observacao: document.getElementById(`${pref}Obs`).value.trim(),
-    ativo: 1
-  };
-  if (tipo === 'pagar') obj.fornecedor = document.getElementById('fpForn').value.trim();
-  else                  obj.cliente    = document.getElementById('frCliente').value.trim();
+  const venc        = document.getElementById(`${pref}Venc`).value;
+  const valorTotal  = parseFloat(document.getElementById(`${pref}Valor`).value)||0;
+  const status      = document.getElementById(`${pref}Status`).value;
+  const observacao  = document.getElementById(`${pref}Obs`).value.trim();
+  const entidade    = tipo === 'pagar' ? document.getElementById('fpForn').value.trim() : document.getElementById('frCliente').value.trim();
+  const parcelas    = id ? 1 : (parseInt(document.getElementById(`${pref}Parcelas`)?.value)||1);
+  salvandoContaFin = true;
+
+  const base = (descricao, vencimento, valor, statusItem) => ({
+    descricao, vencimento: vencimento || null, valor, status: statusItem,
+    data_pag: statusItem==='pago' ? localDateStr() : null,
+    observacao,
+    ...(tipo==='pagar'?{fornecedor:entidade}:{cliente:entidade})
+  });
+
   try {
-    if (id) { await update(table,id,obj); toast('Atualizado!'); }
-    else    { await insert(table,obj);    toast('Salvo!'); }
+    if (id) {
+      await update(table, id, base(desc, venc, valorTotal, status));
+      toast('Atualizado!');
+    } else if (parcelas <= 1) {
+      await insert(table, base(desc, venc, valorTotal, status));
+      toast('Salvo!');
+    } else {
+      const parcela = parseFloat((valorTotal / parcelas).toFixed(2));
+      const [ano, mes, dia] = venc.split('-').map(Number);
+      for (let i = 0; i < parcelas; i++) {
+        const d = new Date(ano, mes - 1 + i, dia);
+        const vencParcela = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        // parcelas futuras sempre nascem pendentes — não faz sentido marcar como já pago/recebido de uma vez
+        await insert(table, base(`${desc} (${i+1}/${parcelas})`, vencParcela, parcela, 'pendente'));
+      }
+      toast(`${parcelas} parcelas lançadas!`);
+    }
     closeModal();
     if (tipo==='pagar') { finTab='pagar'; renderFinanceiro('pagar'); }
     else                { finTab='receber'; renderFinanceiro('receber'); }
   } catch(e) { toast(e.message,'danger'); }
+  finally { salvandoContaFin = false; }
 }
 
 async function pagarConta(tipo, id) {
