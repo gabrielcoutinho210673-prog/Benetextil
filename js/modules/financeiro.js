@@ -317,7 +317,7 @@ async function renderFinanceiroResumo() {
   const el = document.getElementById('finConteudo');
   if (!el) return;
   try {
-    const [pagar, receber, vendas] = await Promise.all([getAll('contas_pagar'), getAll('contas_receber'), getAll('vendas')]);
+    const [pagar, receber] = await Promise.all([getAll('contas_pagar'), getAll('contas_receber')]);
     const hoje = new Date(); hoje.setHours(0,0,0,0);
     const meses = [];
     // sempre mostra de janeiro do ano atual até o mês corrente, pra nenhum mês com
@@ -334,41 +334,7 @@ async function renderFinanceiroResumo() {
     const totalPagoAno     = meses.reduce((s,m)=>s+m.saida,0);
     const lucroAno         = totalRecebidoAno - totalPagoAno;
 
-    const totPagar   = pagar.filter(c=>c.status!=='pago').reduce((s,c)=>s+(parseFloat(c.valor)||0),0);
-    const totReceber = receber.filter(c=>c.status!=='pago').reduce((s,c)=>s+(parseFloat(c.valor)||0),0);
-    const atrasadoP  = pagar.filter(c=>c.status==='pendente'&&c.vencimento&&new Date(c.vencimento+'T00:00:00')<hoje).reduce((s,c)=>s+(parseFloat(c.valor)||0),0);
-    const atrasadoR  = receber.filter(c=>c.status==='pendente'&&c.vencimento&&new Date(c.vencimento+'T00:00:00')<hoje).reduce((s,c)=>s+(parseFloat(c.valor)||0),0);
-
     el.innerHTML = `
-    <div class="row g-3 mb-4">
-      <div class="col-sm-6 col-xl-3">
-        <div class="p-3 rounded text-center" style="background:#fee2e2;border:2px solid #dc2626">
-          <div class="small text-muted fw-semibold">CONTAS A PAGAR</div>
-          <div class="fs-4 fw-bold text-danger">${fmtMoney(totPagar)}</div>
-          ${atrasadoP>0?`<div class="small text-danger mt-1">⚠️ ${fmtMoney(atrasadoP)} vencido</div>`:''}
-        </div>
-      </div>
-      <div class="col-sm-6 col-xl-3">
-        <div class="p-3 rounded text-center" style="background:#d1fae5;border:2px solid #10b981">
-          <div class="small text-muted fw-semibold">A RECEBER</div>
-          <div class="fs-4 fw-bold text-success">${fmtMoney(totReceber)}</div>
-          ${atrasadoR>0?`<div class="small text-warning mt-1">⚠️ ${fmtMoney(atrasadoR)} em atraso</div>`:''}
-        </div>
-      </div>
-      <div class="col-sm-6 col-xl-3">
-        <div class="p-3 rounded text-center" style="background:${(totReceber-totPagar)>=0?'#eef2ff':'#fee2e2'};border:2px solid ${(totReceber-totPagar)>=0?'#4361ee':'#dc2626'}">
-          <div class="small text-muted fw-semibold">SALDO PROJETADO</div>
-          <div class="fs-4 fw-bold ${(totReceber-totPagar)>=0?'text-primary':'text-danger'}">${fmtMoney(totReceber-totPagar)}</div>
-        </div>
-      </div>
-      <div class="col-sm-6 col-xl-3">
-        <div class="p-3 rounded text-center" style="background:#fff3cd;border:2px solid #ffc107">
-          <div class="small text-muted fw-semibold">VENDAS (PDV)</div>
-          <div class="fs-4 fw-bold text-warning">${fmtMoney(vendas.filter(v=>v.status==='fechada').reduce((s,v)=>s+(parseFloat(v.total)||0),0))}</div>
-        </div>
-      </div>
-    </div>
-
     <div class="row g-3 mb-4">
       <div class="col-sm-4">
         <div class="p-3 rounded text-center" style="background:#d1fae5;border:2px solid #10b981">
