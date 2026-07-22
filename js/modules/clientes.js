@@ -520,8 +520,6 @@ function calcResumo() {
     costura += tot;
     if (tot > 0) costuraDetalhes.push({ nome, tot });
   }
-  const costuraRateio = costura;
-
   // Serviços/custos que não são de uma peça específica (calculados antes do
   // loop pra poder ratear em cada peça, proporcional à quantidade dela)
   const operacional = (parseFloat(document.getElementById('cUber')?.value)||0)
@@ -545,6 +543,7 @@ function calcResumo() {
 
   let custoTotal = 0;
   let extrasDistribuidos = 0;
+  let costuraDistribuida = 0;
   for (let i = 1; i <= 5; i++) {
     const ativo = i <= nPecas;
     const tec = parseFloat(document.getElementById(`cTecidoValor${i}`)?.value)||0;
@@ -558,9 +557,11 @@ function calcResumo() {
       setEl(`p${i}_avia_${a.key}_tot`, tot);
     });
     // rateio dos serviços globais (Silk/Caseado/Travete/Bordado/Corte/Operacional)
-    // proporcional à quantidade desta peça, pra somar no lucro/custo de cada peça
+    // e da Costura, proporcional à quantidade desta peça — senão o custo
+    // compartilhado inteiro é somado em cada peça e duplica no Custo Total
     const extraRateio = (ativo && qtdTotal > 0) ? extrasGlobais * (qtdPeca / qtdTotal) : 0;
-    if (ativo) extrasDistribuidos += extraRateio;
+    const costuraRateio = (ativo && qtdTotal > 0) ? costura * (qtdPeca / qtdTotal) : 0;
+    if (ativo) { extrasDistribuidos += extraRateio; costuraDistribuida += costuraRateio; }
     const total = ativo ? (tec + aviaSum + costuraRateio + extraRateio) : 0;
     const qtd   = parseFloat(document.getElementById(`cQtd${i}`)?.value)||0;
     const unit  = (total > 0 && qtd > 0) ? total / qtd : 0;
@@ -593,7 +594,7 @@ function calcResumo() {
   }
 
   // se não deu pra ratear (nenhuma quantidade preenchida), soma direto pra não perder o valor
-  if (qtdTotal <= 0) custoTotal += extrasGlobais - extrasDistribuidos;
+  if (qtdTotal <= 0) custoTotal += (extrasGlobais - extrasDistribuidos) + (costura - costuraDistribuida);
 
   const lucro = valorTotal - custoTotal;
   const elC = document.getElementById('resumoCustoTotal');
