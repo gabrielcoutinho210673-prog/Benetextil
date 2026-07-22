@@ -738,12 +738,27 @@ async function salvarCliente(id) {
     // e não a outro pedido que por acaso tenha o mesmo tipo de peça + nome
     const tag  = `#${pedidoId}`;
 
-    if (!id && data.valor_total > 0) {
+    if (data.valor_total > 0) {
       const statusRec = data.entrada >= data.valor_total ? 'pago' : 'pendente';
-      await insert('contas_receber', {
-        descricao: `Venda: ${desc} ${tag}`, cliente: nome,
-        valor: data.valor_total, vencimento: venc, status: statusRec, ativo: 1
+      // busca o lançamento já existente (mesma lógica de tag usada em contas_pagar)
+      // pra manter sincronizado nas edições, sem duplicar nem sobrescrever um pago
+      const todosReceber = await getAll('contas_receber');
+      const existenteRec = todosReceber.find(e => {
+        const d = e.descricao || '';
+        return d.includes(` ${tag}`) || d.endsWith(`— ${desc}`);
       });
+      if (!existenteRec) {
+        await insert('contas_receber', {
+          descricao: `Venda: ${desc} ${tag}`, cliente: nome,
+          valor: data.valor_total, vencimento: venc, status: statusRec, ativo: 1
+        });
+      } else if (existenteRec.status !== 'pago') {
+        await update('contas_receber', existenteRec.id, {
+          descricao: `Venda: ${desc} ${tag}`, cliente: nome,
+          valor: data.valor_total, vencimento: venc, status: statusRec
+        });
+      }
+      Cache.clear('contas_receber');
     }
 
     const custos = [];
