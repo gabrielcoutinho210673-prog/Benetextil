@@ -330,6 +330,10 @@ async function renderFinanceiroResumo() {
       const saida   = pagar.filter(c=>c.status==='pago'&&c.vencimento&&c.vencimento.startsWith(mes)).reduce((s,c)=>s+(parseFloat(c.valor)||0),0);
       meses.push({ label, entrada, saida, saldo: entrada - saida });
     }
+    const totalRecebidoAno = meses.reduce((s,m)=>s+m.entrada,0);
+    const totalPagoAno     = meses.reduce((s,m)=>s+m.saida,0);
+    const lucroAno         = totalRecebidoAno - totalPagoAno;
+
     const totPagar   = pagar.filter(c=>c.status!=='pago').reduce((s,c)=>s+(parseFloat(c.valor)||0),0);
     const totReceber = receber.filter(c=>c.status!=='pago').reduce((s,c)=>s+(parseFloat(c.valor)||0),0);
     const atrasadoP  = pagar.filter(c=>c.status==='pendente'&&c.vencimento&&new Date(c.vencimento+'T00:00:00')<hoje).reduce((s,c)=>s+(parseFloat(c.valor)||0),0);
@@ -361,6 +365,27 @@ async function renderFinanceiroResumo() {
         <div class="p-3 rounded text-center" style="background:#fff3cd;border:2px solid #ffc107">
           <div class="small text-muted fw-semibold">VENDAS (PDV)</div>
           <div class="fs-4 fw-bold text-warning">${fmtMoney(vendas.filter(v=>v.status==='fechada').reduce((s,v)=>s+(parseFloat(v.total)||0),0))}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+      <div class="col-sm-4">
+        <div class="p-3 rounded text-center" style="background:#d1fae5;border:2px solid #10b981">
+          <div class="small text-muted fw-semibold">TOTAL RECEBIDO NO ANO</div>
+          <div class="fs-4 fw-bold text-success">${fmtMoney(totalRecebidoAno)}</div>
+        </div>
+      </div>
+      <div class="col-sm-4">
+        <div class="p-3 rounded text-center" style="background:#fee2e2;border:2px solid #dc2626">
+          <div class="small text-muted fw-semibold">TOTAL GASTO NO ANO</div>
+          <div class="fs-4 fw-bold text-danger">${fmtMoney(totalPagoAno)}</div>
+        </div>
+      </div>
+      <div class="col-sm-4">
+        <div class="p-3 rounded text-center" style="background:${lucroAno>=0?'#eef2ff':'#fee2e2'};border:2px solid ${lucroAno>=0?'#4361ee':'#dc2626'}">
+          <div class="small text-muted fw-semibold">LUCRO DO ANO</div>
+          <div class="fs-4 fw-bold ${lucroAno>=0?'text-primary':'text-danger'}">${fmtMoney(lucroAno)}</div>
         </div>
       </div>
     </div>
