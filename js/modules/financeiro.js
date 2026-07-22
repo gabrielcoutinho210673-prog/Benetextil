@@ -320,8 +320,10 @@ async function renderFinanceiroResumo() {
     const [pagar, receber, vendas] = await Promise.all([getAll('contas_pagar'), getAll('contas_receber'), getAll('vendas')]);
     const hoje = new Date(); hoje.setHours(0,0,0,0);
     const meses = [];
-    for (let i=5; i>=0; i--) {
-      const d = new Date(); d.setDate(1); d.setMonth(d.getMonth()-i);
+    // sempre mostra de janeiro do ano atual até o mês corrente, pra nenhum mês com
+    // lançamento pago ficar de fora só porque passou de uma janela fixa de 6 meses
+    for (let m = 0; m <= hoje.getMonth(); m++) {
+      const d = new Date(hoje.getFullYear(), m, 1);
       const mes = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
       const label = d.toLocaleDateString('pt-BR',{month:'short',year:'2-digit'});
       const entrada = receber.filter(c=>c.status==='pago'&&c.vencimento&&c.vencimento.startsWith(mes)).reduce((s,c)=>s+(parseFloat(c.valor)||0),0);
@@ -364,7 +366,7 @@ async function renderFinanceiroResumo() {
     </div>
 
     <div class="card">
-      <div class="card-header"><i class="fas fa-chart-bar text-primary me-2"></i><strong>Fluxo dos Últimos 6 Meses</strong></div>
+      <div class="card-header"><i class="fas fa-chart-bar text-primary me-2"></i><strong>Fluxo do Ano (Janeiro até Agora)</strong></div>
       <div class="card-body">
         <div class="table-responsive">
           <table class="table">
