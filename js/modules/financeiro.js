@@ -4,6 +4,8 @@ let finSearch = '';
 let finFiltro = 'todos';
 let finMes    = '';
 let funcMes   = null;
+let fluxoMesFiltro = ''; // '' = ano todo, ou índice do mês dentro de _fluxoMesesCache
+let _fluxoMesesCache = [];
 let salvandoContaFin = false;
 
 // Monta a lista de meses do filtro: sempre inclui janeiro até o mês atual do
@@ -330,28 +332,42 @@ async function renderFinanceiroResumo() {
       const saida   = pagar.filter(c=>c.status==='pago'&&c.vencimento&&c.vencimento.startsWith(mes)).reduce((s,c)=>s+(parseFloat(c.valor)||0),0);
       meses.push({ label, entrada, saida, saldo: entrada - saida });
     }
-    const totalRecebidoAno = meses.reduce((s,m)=>s+m.entrada,0);
-    const totalPagoAno     = meses.reduce((s,m)=>s+m.saida,0);
-    const lucroAno         = totalRecebidoAno - totalPagoAno;
+    _fluxoMesesCache = meses;
+    if (fluxoMesFiltro !== '' && !meses[fluxoMesFiltro]) fluxoMesFiltro = '';
+    const totalAno = {
+      entrada: meses.reduce((s,m)=>s+m.entrada,0),
+      saida:   meses.reduce((s,m)=>s+m.saida,0)
+    };
+    totalAno.saldo = totalAno.entrada - totalAno.saida;
+    const inicial = fluxoMesFiltro === '' ? totalAno : { ...meses[fluxoMesFiltro] };
+    const sufixoInicial = fluxoMesFiltro === '' ? 'NO ANO' : `EM ${meses[fluxoMesFiltro].label.toUpperCase()}`;
 
     el.innerHTML = `
-    <div class="row g-3 mb-4">
+    <div class="d-flex justify-content-end align-items-center mb-3">
+      <label class="form-label small fw-semibold mb-0 me-2">Filtrar por mês</label>
+      <select class="form-select form-select-sm" id="fluxoMesFiltro" style="width:170px" onchange="filtrarFluxoMes(this.value)">
+        <option value="" ${fluxoMesFiltro===''?'selected':''}>Ano todo</option>
+        ${meses.map((m,i)=>`<option value="${i}" ${String(fluxoMesFiltro)===String(i)?'selected':''}>${m.label}</option>`).join('')}
+      </select>
+    </div>
+
+    <div class="row g-3 mb-4" id="fluxoCards">
       <div class="col-sm-4">
         <div class="p-3 rounded text-center" style="background:#d1fae5;border:2px solid #10b981">
-          <div class="small text-muted fw-semibold">TOTAL RECEBIDO NO ANO</div>
-          <div class="fs-4 fw-bold text-success">${fmtMoney(totalRecebidoAno)}</div>
+          <div class="small text-muted fw-semibold" id="fluxoCardRecebidoLabel">TOTAL RECEBIDO ${sufixoInicial}</div>
+          <div class="fs-4 fw-bold text-success" id="fluxoCardRecebidoValor">${fmtMoney(inicial.entrada)}</div>
         </div>
       </div>
       <div class="col-sm-4">
         <div class="p-3 rounded text-center" style="background:#fee2e2;border:2px solid #dc2626">
-          <div class="small text-muted fw-semibold">TOTAL GASTO NO ANO</div>
-          <div class="fs-4 fw-bold text-danger">${fmtMoney(totalPagoAno)}</div>
+          <div class="small text-muted fw-semibold" id="fluxoCardGastoLabel">TOTAL GASTO ${sufixoInicial}</div>
+          <div class="fs-4 fw-bold text-danger" id="fluxoCardGastoValor">${fmtMoney(inicial.saida)}</div>
         </div>
       </div>
       <div class="col-sm-4">
-        <div class="p-3 rounded text-center" style="background:${lucroAno>=0?'#eef2ff':'#fee2e2'};border:2px solid ${lucroAno>=0?'#4361ee':'#dc2626'}">
-          <div class="small text-muted fw-semibold">LUCRO DO ANO</div>
-          <div class="fs-4 fw-bold ${lucroAno>=0?'text-primary':'text-danger'}">${fmtMoney(lucroAno)}</div>
+        <div class="p-3 rounded text-center" id="fluxoCardLucroBox" style="background:${inicial.saldo>=0?'#eef2ff':'#fee2e2'};border:2px solid ${inicial.saldo>=0?'#4361ee':'#dc2626'}">
+          <div class="small text-muted fw-semibold" id="fluxoCardLucroLabel">${fluxoMesFiltro===''?'LUCRO DO ANO':'LUCRO '+sufixoInicial}</div>
+          <div class="fs-4 fw-bold ${inicial.saldo>=0?'text-primary':'text-danger'}" id="fluxoCardLucroValor">${fmtMoney(inicial.saldo)}</div>
         </div>
       </div>
     </div>
@@ -363,7 +379,7 @@ async function renderFinanceiroResumo() {
           <table class="table">
             <thead><tr><th>Mês</th><th>Recebido</th><th>Pago</th><th>Saldo</th></tr></thead>
             <tbody>
-            ${meses.map(m=>`<tr>
+            ${meses.map((m,i)=>`<tr id="fluxoLinha${i}" style="${String(fluxoMesFiltro)===String(i)?'background:#eef2ff':''}">
               <td class="fw-semibold">${m.label}</td>
               <td class="text-success">${fmtMoney(m.entrada)}</td>
               <td class="text-danger">${fmtMoney(m.saida)}</td>
@@ -375,6 +391,37 @@ async function renderFinanceiroResumo() {
       </div>
     </div>`;
   } catch(e) { el.innerHTML = `<div class="alert alert-danger">${escHtml(e.message)}</div>`; }
+}
+
+function filtrarFluxoMes(valor) {
+  fluxoMesFiltro = valor;
+  const meses = _fluxoMesesCache;
+  document.querySelectorAll('[id^="fluxoLinha"]').forEach(tr => tr.style.background = '');
+
+  let dados, sufixo;
+  if (valor === '') {
+    dados = { entrada: meses.reduce((s,m)=>s+m.entrada,0), saida: meses.reduce((s,m)=>s+m.saida,0) };
+    sufixo = 'NO ANO';
+  } else {
+    const m = meses[parseInt(valor)];
+    dados = { entrada: m.entrada, saida: m.saida };
+    sufixo = `EM ${m.label.toUpperCase()}`;
+    const row = document.getElementById(`fluxoLinha${valor}`);
+    if (row) row.style.background = '#eef2ff';
+  }
+  const saldo = dados.entrada - dados.saida;
+
+  document.getElementById('fluxoCardRecebidoLabel').textContent = `TOTAL RECEBIDO ${sufixo}`;
+  document.getElementById('fluxoCardGastoLabel').textContent    = `TOTAL GASTO ${sufixo}`;
+  document.getElementById('fluxoCardLucroLabel').textContent    = valor === '' ? 'LUCRO DO ANO' : `LUCRO ${sufixo}`;
+  document.getElementById('fluxoCardRecebidoValor').textContent = fmtMoney(dados.entrada);
+  document.getElementById('fluxoCardGastoValor').textContent    = fmtMoney(dados.saida);
+  const elLucro = document.getElementById('fluxoCardLucroValor');
+  elLucro.textContent = fmtMoney(saldo);
+  elLucro.className = 'fs-4 fw-bold ' + (saldo>=0?'text-primary':'text-danger');
+  const box = document.getElementById('fluxoCardLucroBox');
+  box.style.background   = saldo>=0 ? '#eef2ff' : '#fee2e2';
+  box.style.borderColor  = saldo>=0 ? '#4361ee' : '#dc2626';
 }
 
 function formContaPagar(c={}) {
