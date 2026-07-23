@@ -1,5 +1,6 @@
 'use strict';
 let sublimacaoSearch = '';
+let sublimacaoMes = '';
 let salvandoSublimacao = false;
 
 async function renderSublimacao(search) {
@@ -7,13 +8,23 @@ async function renderSublimacao(search) {
   document.getElementById('pageTitle').textContent = 'Sublimação';
   try {
     let dados = await getAll('sublimacao');
+
+    const mesesSet = new Set();
+    dados.forEach(r => { if (r.data_pedido) mesesSet.add(r.data_pedido.slice(0,7)); });
+    const meses = Array.from(mesesSet).sort().reverse();
+
     if (sublimacaoSearch) dados = dados.filter(r => (r.descricao+' '+r.tecido+' '+r.cod_cor).toLowerCase().includes(sublimacaoSearch.toLowerCase()));
+    if (sublimacaoMes) dados = dados.filter(r => (r.data_pedido||'').startsWith(sublimacaoMes));
 
     document.getElementById('pageContent').innerHTML = `
     <div class="card">
       <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
         <h6><i class="fas fa-paint-brush me-2"></i>${dados.length} registro(s)</h6>
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 flex-wrap">
+          <select class="form-select form-select-sm" style="width:180px" onchange="sublimacaoMes=this.value;renderSublimacao()">
+            <option value="">Todos os meses</option>
+            ${meses.map(m=>`<option value="${m}" ${sublimacaoMes===m?'selected':''}>${new Date(m+'-02').toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}</option>`).join('')}
+          </select>
           <div class="input-group input-group-sm" style="width:260px">
             <input type="text" class="form-control" placeholder="Buscar..." value="${escHtml(sublimacaoSearch)}"
               oninput="renderSublimacao(this.value)">
@@ -26,7 +37,7 @@ async function renderSublimacao(search) {
         <div class="table-responsive">
           <table class="table mb-0">
             <thead><tr>
-              <th class="ps-3">Descrição</th><th>Tecido / Cód. Cor</th><th>R$/m²</th>
+              <th class="ps-3">Descrição</th><th>Data Pedido</th><th>Tecido / Cód. Cor</th><th>R$/m²</th>
               <th>Uber</th><th>Almoço</th><th>Gasolina</th><th>Estacionamento</th><th>Brim</th>
               <th class="fw-bold text-primary">Total Gasto</th><th class="text-end pe-3">Ações</th>
             </tr></thead>
@@ -36,6 +47,7 @@ async function renderSublimacao(search) {
               const total = [r.uber, r.almoco, r.gasolina, r.estacionamento, r.brim, r.mao_obra_anderson].reduce((s,v)=>s+(parseFloat(v)||0),0);
               return `<tr>
                 <td class="ps-3"><strong>${escHtml(r.descricao||'—')}</strong></td>
+                <td><small>${r.data_pedido?fmtDate(r.data_pedido):'—'}</small></td>
                 <td>${escHtml(r.tecido||'—')}<br><small class="text-muted">${escHtml(r.cod_cor||'—')}</small></td>
                 <td><small>${r.qtd_metro||0}m² × ${r.valor_metro?fmtMoney(r.valor_metro):'-'}</small><br><strong>${fmtMoney(totalMetro)}</strong></td>
                 <td>${r.uber?fmtMoney(r.uber):'—'}</td>
