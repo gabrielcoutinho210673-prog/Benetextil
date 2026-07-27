@@ -762,7 +762,13 @@ async function salvarCliente(id) {
     }
 
     const custos = [];
-    if (data.tecido_valor > 0) custos.push({ label: 'Tecido', val: data.tecido_valor });
+    // Tecido de cada peça (1 a 5) vira uma Compra da Empresa em vez de uma linha
+    // avulsa em Contas a Pagar — antes só a Peça 1 gerava esse custo, o tecido das
+    // demais peças nunca era registrado como despesa real.
+    for (let pi = 1; pi <= 5; pi++) {
+      const tecidoVal = pi === 1 ? data.tecido_valor : (parseFloat(data[`peca${pi}_tecido_valor`])||0);
+      if (tecidoVal > 0) custos.push({ label: pi===1?'Tecido':`Tecido Peça ${pi}`, val: tecidoVal, compra: true });
+    }
 
     const nCostureiras = parseInt(data.costura_qtd)||0;
     for (let ci = 1; ci <= nCostureiras; ci++) {
@@ -824,6 +830,25 @@ async function salvarCliente(id) {
       const descricaoCompleta = `${c.label} — ${desc} ${tag}`;
       const jaEstaPago = [...descricoesJaPagas].some(d => d === descricaoCompleta || d === `${c.label} — ${desc}`);
       if (jaEstaPago) continue;
+      if (c.compra) {
+        // Tecido é lançado como Compra da Empresa (que já gera seu próprio Contas
+        // a Pagar) em vez de uma linha avulsa — evita contar o mesmo gasto 2x.
+        // Remove uma compra antiga com a mesma descrição antes de recriar, caso o
+        // pedido esteja sendo editado de novo com o valor do tecido alterado.
+        const todasCompras = await getAll('compras');
+        const compraAntiga = todasCompras.find(cp => cp.descricao === descricaoCompleta);
+        if (compraAntiga) await remove('compras', compraAntiga.id);
+        await insert('compras', {
+          descricao:   descricaoCompleta,
+          fornecedor:  'Benetextil',
+          categoria:   'Matéria-prima',
+          valor_total: c.val,
+          parcelas:    1,
+          data_compra: data.data_pedido || venc,
+          observacoes: `Gerado automaticamente pelo pedido de Uniforme ${tag}`,
+          ativo: 1
+        });
+      }
       await insert('contas_pagar', {
         descricao:  descricaoCompleta,
         fornecedor: c.fornecedor || 'Benetextil',
@@ -831,6 +856,7 @@ async function salvarCliente(id) {
       });
     }
     Cache.clear('contas_pagar');
+    Cache.clear('compras');
 
     const totalCustos = custos.reduce((s,c)=>s+c.val, 0);
     const lucro = data.valor_total - totalCustos;
