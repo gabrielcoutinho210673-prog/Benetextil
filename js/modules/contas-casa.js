@@ -68,7 +68,7 @@ async function renderContasCasa(filtro) {
 }
 
 function formContasCasa(r={}) {
-  const categorias = ['Aluguel','Água','Energia','Internet','Telefone','Alimentação','Combustível','Manutenção','Imposto','Outro'];
+  const categorias = ['Aluguel','Água','Energia','Internet','Telefone','Alimentação','Combustível','Manutenção','Imposto','Dízimo','Outro'];
   openModal(`<i class="fas fa-home me-2"></i>${r.id?'Editar':'Nova'} Conta da Casa`,
   `<div class="row g-3">
     <div class="col-12"><label class="form-label fw-semibold">DESCRIÇÃO *</label>
