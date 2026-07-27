@@ -91,6 +91,7 @@ async function renderClientes(search) {
                 <td class="fw-semibold">${c.valor_total?fmtMoney(c.valor_total):'—'}</td>
                 <td>${statusPgto}</td>
                 <td class="text-end pe-3">
+                  <button class="btn btn-icon btn-outline-secondary btn-sm" title="Gerar Ordem de Fornecimento (PDF)" onclick='gerarOrdemFornecimento("uniforme",${JSON.stringify(c)})'><i class="fas fa-file-pdf"></i></button>
                   <button class="btn btn-icon btn-outline-primary btn-sm" onclick='formCliente(${JSON.stringify(c)})'><i class="fas fa-edit"></i></button>
                   <button class="btn btn-icon btn-outline-danger btn-sm" onclick="delCliente(${c.id},'${escHtml(c.nome)}')"><i class="fas fa-trash"></i></button>
                 </td></tr>`;}).join('')
@@ -864,6 +865,7 @@ async function salvarCliente(id) {
       toast(`Pedido atualizado! Custos: ${fmtMoney(totalCustos)} lançados em Contas a Pagar`);
     } else {
       toast(`Pedido cadastrado! ✔ A Receber: ${fmtMoney(data.valor_total)} | Custos: ${fmtMoney(totalCustos)} | Margem: ${fmtMoney(lucro)}`);
+      try { gerarOrdemFornecimento('uniforme', { ...data, id: pedidoId }); } catch(e) {}
     }
     closeModal(); renderClientes();
   } catch(e) { toast(e.message,'danger'); }

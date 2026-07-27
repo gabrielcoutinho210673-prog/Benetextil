@@ -217,6 +217,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--body);color:#2
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <script src="config.js" onerror="window.APP_CONFIG=null"></script>
 
 <!-- Globals disponíveis ANTES de qualquer módulo -->
@@ -230,6 +232,7 @@ const getSupaKey = () => window.APP_CONFIG?.supabase_key || 'eyJhbGciOiJIUzI1NiI
 
 <!-- Módulos MVC -->
 <script src="js/utils.js"></script>
+<script src="js/pdf.js"></script>
 <script src="js/api.js"></script>
 <script src="js/auth.js"></script>
 <script src="js/router.js"></script>

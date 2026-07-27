@@ -57,6 +57,7 @@ async function renderSublimacao(search) {
                 <td>${r.brim?fmtMoney(r.brim):'—'}</td>
                 <td class="fw-bold text-primary">${fmtMoney(total)}</td>
                 <td class="text-end pe-3">
+                  <button class="btn btn-icon btn-outline-secondary btn-sm" title="Gerar Ordem de Fornecimento (PDF)" onclick='gerarOrdemFornecimento("sublimacao",${JSON.stringify(r)})'><i class="fas fa-file-pdf"></i></button>
                   <button class="btn btn-icon btn-outline-primary btn-sm" onclick='formSublimacao(${JSON.stringify(r)})'><i class="fas fa-edit"></i></button>
                   <button class="btn btn-icon btn-outline-danger btn-sm" onclick="delSublimacao(${r.id},'${escHtml(r.descricao||'')}')"><i class="fas fa-trash"></i></button>
                 </td></tr>`;}).join('')
@@ -432,6 +433,7 @@ async function salvarSublimacao(id) {
           ativo: 1
         });
       }
+      try { gerarOrdemFornecimento('sublimacao', { ...data, id: novo.id }); } catch(e) {}
     }
     closeModal(); renderSublimacao();
   } catch(e) { toast(e.message,'danger'); }
