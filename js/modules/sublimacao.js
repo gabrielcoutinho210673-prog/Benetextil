@@ -323,6 +323,24 @@ async function salvarSublimacao(id) {
       // Usa o próprio ID do registro como identificador único, já que descrição e
       // cliente costumam ficar em branco (não dá pra confiar só no texto pra comparar).
       const tag = `Sublimação #${id}`;
+      const vencEdit = data.data_entrega || data.data_pedido || localDateStr();
+      if (data.compra_tecido_total > 0) {
+        const descTecido = `${tag} — Custo do Tecido: ${rotulo}`;
+        const existentesPagar0 = await getAll('contas_pagar');
+        if (!existentesPagar0.some(c => (c.descricao||'').startsWith(`${tag} — Custo do Tecido:`))) {
+          await insert('compras', {
+            descricao: descTecido, fornecedor: 'Benetextil', categoria: 'Matéria-prima',
+            valor_total: data.compra_tecido_total, parcelas: 1,
+            data_compra: data.data_pedido || vencEdit,
+            observacoes: `Gerado automaticamente pela ${tag}`, ativo: 1
+          });
+          await insert('contas_pagar', {
+            descricao: descTecido, fornecedor: 'Benetextil',
+            valor: data.compra_tecido_total, vencimento: vencEdit, status: 'pendente', ativo: 1
+          });
+          Cache.clear('compras');
+        }
+      }
       const totalGastoEdit = data.uber + data.almoco + data.gasolina + data.estacionamento + data.brim + data.mao_obra_anderson;
       if (totalGastoEdit > 0) {
         const existentesPagar = await getAll('contas_pagar');
@@ -341,7 +359,7 @@ async function salvarSublimacao(id) {
             descricao:  `${tag} — ${item.label}: ${rotulo}`,
             fornecedor: item.fornecedor,
             valor:      item.val,
-            vencimento: data.data_entrega || data.data_pedido || localDateStr(),
+            vencimento: vencEdit,
             status:     'pendente',
             ativo: 1
           });
@@ -367,9 +385,22 @@ async function salvarSublimacao(id) {
     } else {
       const novo = await insert('sublimacao', data);
       const tag = `Sublimação #${novo.id}`;
+      const vencCusto = data.data_entrega || data.data_pedido || localDateStr();
+      if (data.compra_tecido_total > 0) {
+        await insert('compras', {
+          descricao: `${tag} — Custo do Tecido: ${rotulo}`, fornecedor: 'Benetextil', categoria: 'Matéria-prima',
+          valor_total: data.compra_tecido_total, parcelas: 1,
+          data_compra: data.data_pedido || vencCusto,
+          observacoes: `Gerado automaticamente pela ${tag}`, ativo: 1
+        });
+        await insert('contas_pagar', {
+          descricao: `${tag} — Custo do Tecido: ${rotulo}`, fornecedor: 'Benetextil',
+          valor: data.compra_tecido_total, vencimento: vencCusto, status: 'pendente', ativo: 1
+        });
+        Cache.clear('compras');
+      }
       const totalGasto = data.uber + data.almoco + data.gasolina + data.estacionamento + data.brim + data.mao_obra_anderson;
       if (totalGasto > 0) {
-        const vencCusto = data.data_entrega || data.data_pedido || localDateStr();
         const itens = [
           { label: 'Uber',               val: data.uber,              fornecedor: 'Benetextil' },
           { label: 'Almoço',             val: data.almoco,            fornecedor: 'Benetextil' },
@@ -388,10 +419,9 @@ async function salvarSublimacao(id) {
             ativo: 1
           });
         }
-        toast(`Salvo! Total gasto ${fmtMoney(totalGasto)} lançado em Contas a Pagar.`);
-      } else {
-        toast('Registro salvo!');
       }
+      const totalLancado = totalGasto + data.compra_tecido_total;
+      toast(totalLancado > 0 ? `Salvo! Total gasto ${fmtMoney(totalLancado)} lançado em Contas a Pagar.` : 'Registro salvo!');
       if (data.valor_venda > 0) {
         await insert('contas_receber', {
           descricao:  `${tag} — ${rotulo}`,
