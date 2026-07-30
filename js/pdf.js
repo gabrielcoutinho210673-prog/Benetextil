@@ -1,10 +1,20 @@
 'use strict';
 
+// Dados fixos da Benetextil (fornecedor) — sempre os mesmos em toda ordem gerada.
+const FORNECEDOR_BENETEXTIL = {
+  codigo: '03310',
+  cnpj: '18.252.263/0001-53',
+  razaoSocial: 'Paulo Roberto Beneti dos Santos 71739122968',
+  nomeFantasia: 'BENETEXTIL UNIFORMES',
+  endereco: 'Rua Santos 45 - São Caetaninho',
+  cidadeUf: 'Ribeirão Pires / SP',
+  telefone: '11 4829-8352',
+  email: 'beneti.claudia@gmail.com'
+};
+
 // Gera a "Ordem de Fornecimento" em PDF a partir de um pedido de Uniforme ou
-// Sublimação, seguindo o modelo padrão da Benetextil. Campos corporativos que
-// não se aplicam ao negócio (Centro de Custo, ICMS, IPI, Frete, Transportador,
-// dados fixos da própria empresa) ficam no layout mas em branco, prontos pra
-// preencher à mão se um dia for preciso.
+// Sublimação — versão enxuta: só os campos usados de verdade pela Benetextil
+// (sem Centro de Custo/Evento, ICMS, IPI, Frete, Transportador, Boleto).
 function gerarOrdemFornecimento(tipo, r) {
   if (!window.jspdf) { toast('Biblioteca de PDF não carregou. Tente recarregar a página.', 'danger'); return; }
   const { jsPDF } = window.jspdf;
@@ -33,8 +43,15 @@ function gerarOrdemFornecimento(tipo, r) {
     doc.rect(x, y, lw, rowH, 'F');
     doc.setFont(undefined, 'bold'); doc.setFontSize(6.5);
     doc.text(label, x + 1.5, y + rowH / 2 + 1.2);
-    doc.setFont(undefined, 'normal'); doc.setFontSize(7.5);
-    if (valor) doc.text(String(valor), x + lw + 2, y + rowH / 2 + 1.2);
+    doc.setFont(undefined, 'normal');
+    if (valor) {
+      // encolhe a fonte se o texto for comprido demais pro espaço disponível
+      const disponivel = w - lw - 3;
+      let fs = 7.5;
+      doc.setFontSize(fs);
+      while (fs > 5.5 && doc.getTextWidth(String(valor)) > disponivel) { fs -= 0.5; doc.setFontSize(fs); }
+      doc.text(String(valor), x + lw + 2, y + rowH / 2 + 1.2);
+    }
   };
 
   const linha2 = (labelA, valorA, labelB, valorB) => {
@@ -58,21 +75,14 @@ function gerarOrdemFornecimento(tipo, r) {
   doc.line(M, y, pageW - M, y);
   y += 4;
 
-  // Dados do fornecedor (a própria Benetextil — sem cadastro de empresa ainda,
-  // fica em branco pra preencher à mão até existir esse dado no sistema)
+  // Dados do fornecedor — sempre os dados fixos da Benetextil
+  const f = FORNECEDOR_BENETEXTIL;
   secao('DADOS DO FORNECEDOR');
-  linha2('CÓDIGO', '', 'CNPJ', '');
-  linha2('RAZÃO SOCIAL', '', 'NOME FANTASIA', 'BENETEXTIL UNIFORMES');
-  campo(M, contentW, 'ENDEREÇO', ''); y += rowH;
-  linha2('CIDADE / UF', '', 'TELEFONE', '');
-  campo(M, contentW, 'E-MAIL', ''); y += rowH + 3;
-
-  // Dados do pedido
-  secao('DADOS DO PEDIDO');
-  linha2('EMISSÃO', fmtDate(r.data_pedido), 'ENTREGA', fmtDate(r.data_entrega));
-  linha2('CENTRO DE CUSTO', '', 'CENTRO DE EVENTO', '');
-  linha2('COMPROMISSO', '', 'APLICAÇÃO', '');
-  y += 3;
+  linha2('CÓDIGO', f.codigo, 'CNPJ', f.cnpj);
+  linha2('RAZÃO SOCIAL', f.razaoSocial, 'NOME FANTASIA', f.nomeFantasia);
+  campo(M, contentW, 'ENDEREÇO', f.endereco); y += rowH;
+  linha2('CIDADE / UF', f.cidadeUf, 'TELEFONE', f.telefone);
+  campo(M, contentW, 'E-MAIL', f.email); y += rowH + 3;
 
   // Itens do pedido
   secao('ITENS DO PEDIDO');
@@ -91,9 +101,7 @@ function gerarOrdemFornecimento(tipo, r) {
 
   const valorTotal = parseFloat(r.valor_total ?? r.valor_venda) || 0;
 
-  linha2('VALOR ICMS', 'R$', 'TAXA FINANCEIRA', '');
-  linha2('DESCONTO', 'R$', 'VALOR FRETE', 'R$');
-  linha2('FORMA DE PAGAMENTO', r.forma_pagamento || '', 'CONDIÇÃO PAGTO.', '');
+  campo(M, contentW, 'FORMA DE PAGAMENTO', r.forma_pagamento || ''); y += rowH;
 
   doc.setFillColor(25, 25, 25);
   doc.rect(M, y, contentW / 2, rowH + 1, 'F');
@@ -106,12 +114,6 @@ function gerarOrdemFornecimento(tipo, r) {
   y += rowH + 1 + 4;
 
   if (y > 250) { doc.addPage(); y = M; }
-
-  // Transportador
-  secao('TRANSPORTADOR');
-  campo(M, contentW * 0.7, 'NOME', '');
-  campo(M + contentW * 0.7, contentW * 0.3, 'FRETE POR CONTA', '');
-  y += rowH + 3;
 
   // Condições financeiras — usa entrada/saldo já cadastrados no pedido
   secao('CONDIÇÕES FINANCEIRAS');
@@ -138,38 +140,24 @@ function gerarOrdemFornecimento(tipo, r) {
   // Observações
   secao('OBSERVAÇÕES');
   campo(M, contentW, 'COND. PAGAMENTO', r.forma_pagamento || ''); y += rowH;
-  campo(M, contentW, 'E-MAIL NF-E / XML', ''); y += rowH;
+  campo(M, contentW, 'E-MAIL NF-E / XML', ''); y += rowH + 6;
 
-  // Página de assinatura
-  doc.addPage();
-  y = M;
-  doc.setFillColor(235, 235, 235); doc.rect(M, y, contentW, 6, 'F');
-  doc.setFont(undefined, 'bold'); doc.setFontSize(8); doc.setTextColor(0, 0, 0);
-  doc.text('BOLETO', M + 2, y + 4);
-  y += 11;
+  if (y > 240) { doc.addPage(); y = M; }
+
+  // Comprador / assinatura
   doc.setFont(undefined, 'italic'); doc.setFontSize(8); doc.setTextColor(150, 120, 20);
   doc.text('Favor constar em sua Nota Fiscal o número desta Ordem de Fornecimento.', M, y);
   doc.setTextColor(0, 0, 0); doc.setFont(undefined, 'normal');
   y += 6;
-  doc.setDrawColor(180, 180, 180);
-  doc.rect(M, y, contentW, 16);
-  doc.setFontSize(8);
-  doc.text(`Comprador: ${r.nome_cliente || r.nome || ''}`, M + 2, y + 6);
-  doc.text('Solicitante: ____________________________', M + 2, y + 13);
+  doc.text(`Comprador: `, M, y);
   doc.setFont(undefined, 'bold');
-  doc.text('Assinatura Autorizada', M + contentW * 0.73, y + 9, { align: 'center' });
+  doc.text(String(r.nome_cliente || r.nome || ''), M + doc.getTextWidth('Comprador: ') + 1, y);
   doc.setFont(undefined, 'normal');
-  y += 26;
-  doc.setDrawColor(180, 150, 60); doc.setLineWidth(0.8);
-  doc.line(M, y, pageW - M, y);
-  y += 8;
-  doc.setFont(undefined, 'bold'); doc.setFontSize(9);
-  doc.text('BENETEXTIL UNIFORMES', pageW / 2, y, { align: 'center' });
-  y += 5;
-  doc.setFont(undefined, 'normal'); doc.setFontSize(7); doc.setTextColor(120, 120, 120);
-  doc.text('Endereço: ________________________________________  CNPJ: ______________________', pageW / 2, y, { align: 'center' });
-  y += 4;
-  doc.text('Telefone: ______________________  E-mail: ________________________________________', pageW / 2, y, { align: 'center' });
+  y += 6;
+  doc.text('Solicitante: ____________________________', M, y);
+  doc.setFont(undefined, 'bold');
+  doc.text('Assinatura Autorizada', M + contentW * 0.73, y - 3, { align: 'center' });
+  doc.setFont(undefined, 'normal');
 
   const nomeCliente = (r.nome_cliente || r.nome || 'pedido').replace(/[^a-zA-Z0-9]+/g, '_');
   doc.save(`Ordem_Fornecimento_${nomeCliente}_${r.id || ''}.pdf`);
