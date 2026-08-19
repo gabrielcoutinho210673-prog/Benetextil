@@ -549,6 +549,24 @@ async function pagarConta(tipo, id) {
   const table = tipo === 'pagar' ? 'contas_pagar' : 'contas_receber';
   const msg   = tipo === 'pagar' ? 'Marcar como pago?' : 'Marcar como recebido?';
   if (!confirm(msg)) return;
+
+  if (tipo === 'receber') {
+    // se esse recebimento é de um pedido de Uniforme (descrição no formato
+    // "Venda: ... #<id>"), sincroniza a Entrada do pedido pro Valor Total —
+    // senão o badge de status (Pago/Parcial/Pendente) em Uniforme fica
+    // desatualizado mesmo depois de marcar como recebido aqui.
+    const todosReceber = await getAll('contas_receber');
+    const conta = todosReceber.find(c => String(c.id) === String(id));
+    const m = conta?.descricao?.match(/^Venda: .* #(\d+)$/);
+    if (m) {
+      const pedidos = await getAll('clientes');
+      const pedido = pedidos.find(p => String(p.id) === m[1]);
+      if (pedido && (parseFloat(pedido.entrada)||0) < (parseFloat(pedido.valor_total)||0)) {
+        await update('clientes', pedido.id, { entrada: pedido.valor_total });
+      }
+    }
+  }
+
   await update(table, id, { status: 'pago', data_pag: localDateStr() });
   toast('Status atualizado!');
   if (tipo==='pagar') renderContasPagar();
