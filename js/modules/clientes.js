@@ -36,7 +36,7 @@ async function renderClientes(search) {
     if (clienteMes) base = base.filter(c => (c.data_pedido||'').startsWith(clienteMes));
 
     const hoje = new Date(); hoje.setHours(0,0,0,0);
-    const isAtraso = c => c.data_entrega && new Date(c.data_entrega+'T00:00:00') < hoje;
+    const isAtraso = c => c.data_entrega && !c.entregue && new Date(c.data_entrega+'T00:00:00') < hoje;
     const qtdAtraso = base.filter(isAtraso).length;
     const qtdPrazo  = base.length - qtdAtraso;
 
@@ -87,10 +87,11 @@ async function renderClientes(search) {
                 <td>${escHtml(c.tipo_peca||'—')}</td>
                 <td>${escHtml(c.quantidade||'—')}</td>
                 <td><small>${c.data_pedido?fmtDate(c.data_pedido):'—'}</small></td>
-                <td><small class="${atrasado?'text-danger fw-bold':''}">${c.data_entrega?fmtDate(c.data_entrega):'—'}${atrasado?' ⚠️ Atrasado':''}</small></td>
+                <td><small class="${atrasado?'text-danger fw-bold':''}">${c.data_entrega?fmtDate(c.data_entrega):'—'}${atrasado?' ⚠️ Atrasado':c.entregue?' <span class="badge bg-info text-dark">Entregue</span>':''}</small></td>
                 <td class="fw-semibold">${c.valor_total?fmtMoney(c.valor_total):'—'}</td>
                 <td>${statusPgto}</td>
                 <td class="text-end pe-3">
+                  ${!c.entregue?`<button class="btn btn-icon btn-outline-info btn-sm" title="Marcar como Entregue" onclick="marcarEntregue(${c.id})"><i class="fas fa-truck"></i></button>`:''}
                   <button class="btn btn-icon btn-outline-secondary btn-sm" title="Gerar Ordem de Fornecimento (PDF)" onclick='gerarOrdemFornecimento("uniforme",${JSON.stringify(c)})'><i class="fas fa-file-pdf"></i></button>
                   <button class="btn btn-icon btn-outline-primary btn-sm" onclick='formCliente(${JSON.stringify(c)})'><i class="fas fa-edit"></i></button>
                   <button class="btn btn-icon btn-outline-danger btn-sm" onclick="delCliente(${c.id},'${escHtml(c.nome)}')"><i class="fas fa-trash"></i></button>
@@ -875,4 +876,10 @@ async function salvarCliente(id) {
 async function delCliente(id, nome) {
   if (!confirm(`Excluir o cliente "${nome}"?`)) return;
   await remove('clientes',id); toast('Cliente removido.'); renderClientes();
+}
+
+async function marcarEntregue(id) {
+  if (!confirm('Marcar este pedido como entregue?')) return;
+  await update('clientes', id, { entregue: 1 });
+  toast('Pedido marcado como entregue!'); renderClientes();
 }
