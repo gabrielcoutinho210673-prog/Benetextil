@@ -146,7 +146,7 @@ async function formCompras(r = {}) {
       </select></div>
     <div class="col-md-3"><label class="form-label fw-semibold">PARCELAMENTO</label>
       <select class="form-select" id="cParcelas" onchange="atualizarPreviewParcelasCompra()">
-        ${[1,2,3,4,5,6].map(n => `<option value="${n}" ${(r.parcelas || 1) == n ? 'selected' : ''}>${n === 1 ? 'À Vista (1x)' : n + 'x'}</option>`).join('')}
+        ${Array.from({length:24},(_,i)=>i+1).map(n => `<option value="${n}" ${(r.parcelas || 1) == n ? 'selected' : ''}>${n === 1 ? 'À Vista (1x)' : n + 'x'}</option>`).join('')}
       </select></div>
     <div class="col-12" id="cPreviewParcelasCompra"></div>
 

@@ -443,7 +443,7 @@ function formContaPagar(c={}) {
       </select></div>
     <div class="col-md-4"><label class="form-label fw-semibold">PARCELAMENTO</label>
       <select class="form-select" id="fpParcelas" onchange="atualizarPreviewParcelasFin('fp')" ${c.id?'disabled':''}>
-        ${[1,2,3,4,5,6].map(n=>`<option value="${n}">${n===1?'À Vista (1x)':n+'x'}</option>`).join('')}
+        ${Array.from({length:24},(_,i)=>i+1).map(n=>`<option value="${n}">${n===1?'À Vista (1x)':n+'x'}</option>`).join('')}
       </select></div>
     <div class="col-12" id="fpPreviewParcelas"></div>
     <div class="col-12"><label class="form-label">OBSERVAÇÃO</label>
@@ -474,7 +474,7 @@ function formContaReceber(c={}) {
       </select></div>
     <div class="col-md-4"><label class="form-label fw-semibold">PARCELAMENTO</label>
       <select class="form-select" id="frParcelas" onchange="atualizarPreviewParcelasFin('fr')" ${c.id?'disabled':''}>
-        ${[1,2,3,4,5,6].map(n=>`<option value="${n}">${n===1?'À Vista (1x)':n+'x'}</option>`).join('')}
+        ${Array.from({length:24},(_,i)=>i+1).map(n=>`<option value="${n}">${n===1?'À Vista (1x)':n+'x'}</option>`).join('')}
       </select></div>
     <div class="col-12" id="frPreviewParcelas"></div>
     <div class="col-12"><label class="form-label">OBSERVAÇÃO</label>
