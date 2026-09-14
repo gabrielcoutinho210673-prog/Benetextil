@@ -1,14 +1,21 @@
 'use strict';
 let construcaoSearch = '';
 let construcaoFiltro = 'todos';
+let construcaoMes = '';
 
 async function renderConstrucao(filtro) {
   if (filtro !== undefined) construcaoFiltro = filtro;
   document.getElementById('pageTitle').textContent = 'Construção';
   document.getElementById('pageContent').innerHTML = loading();
   try {
-    let dados = await getAll('construcao');
+    const todos = await getAll('construcao');
+    const mesesSet = new Set();
+    todos.forEach(r => { if (r.vencimento) mesesSet.add(r.vencimento.slice(0,7)); });
+    const meses = Array.from(mesesSet).sort().reverse();
+
+    let dados = todos;
     if (construcaoSearch) dados = dados.filter(r => (r.descricao+' '+r.categoria+' '+r.fornecedor).toLowerCase().includes(construcaoSearch.toLowerCase()));
+    if (construcaoMes) dados = dados.filter(r => (r.vencimento||'').startsWith(construcaoMes));
     if (construcaoFiltro === 'pago')     dados = dados.filter(r => r.status === 'pago');
     if (construcaoFiltro === 'pendente') dados = dados.filter(r => r.status !== 'pago');
     const total    = dados.reduce((s,r) => s+(parseFloat(r.valor)||0),0);
@@ -37,7 +44,11 @@ async function renderConstrucao(filtro) {
         <div class="d-flex gap-1">
           ${['todos','pendente','pago'].map(f=>`<button class="btn btn-sm ${construcaoFiltro===f?'btn-primary':'btn-outline-secondary'}" onclick="renderConstrucao('${f}')">${f==='todos'?'Todos':f==='pendente'?'Pendente':'Pagos'}</button>`).join('')}
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 flex-wrap">
+          <select class="form-select form-select-sm" style="width:170px" onchange="construcaoMes=this.value;renderConstrucao()">
+            <option value="">Todos os meses</option>
+            ${meses.map(m=>`<option value="${m}" ${construcaoMes===m?'selected':''}>${new Date(m+'-02').toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}</option>`).join('')}
+          </select>
           <div class="input-group input-group-sm" style="width:220px">
             <input type="text" class="form-control" placeholder="Buscar..." value="${escHtml(construcaoSearch)}" oninput="construcaoSearch=this.value;renderConstrucao()">
             <button class="btn btn-outline-secondary" onclick="construcaoSearch='';renderConstrucao()"><i class="fas fa-times"></i></button>

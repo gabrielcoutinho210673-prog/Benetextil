@@ -1,14 +1,21 @@
 'use strict';
 let contasCasaSearch = '';
 let contasCasaFiltro = 'todos';
+let contasCasaMes = '';
 
 async function renderContasCasa(filtro) {
   if (filtro !== undefined) contasCasaFiltro = filtro;
   document.getElementById('pageTitle').textContent = 'Contas da Casa';
   document.getElementById('pageContent').innerHTML = loading();
   try {
-    let dados = await getAll('contas_casa');
+    const todos = await getAll('contas_casa');
+    const mesesSet = new Set();
+    todos.forEach(r => { if (r.vencimento) mesesSet.add(r.vencimento.slice(0,7)); });
+    const meses = Array.from(mesesSet).sort().reverse();
+
+    let dados = todos;
     if (contasCasaSearch) dados = dados.filter(r => (r.descricao+' '+r.categoria+' '+r.fornecedor).toLowerCase().includes(contasCasaSearch.toLowerCase()));
+    if (contasCasaMes) dados = dados.filter(r => (r.vencimento||'').startsWith(contasCasaMes));
     if (contasCasaFiltro === 'pago')    dados = dados.filter(r => r.status === 'pago');
     if (contasCasaFiltro === 'pendente') dados = dados.filter(r => r.status !== 'pago');
     const total   = dados.reduce((s,r) => s+(parseFloat(r.valor)||0),0);
@@ -27,7 +34,11 @@ async function renderContasCasa(filtro) {
         <div class="d-flex gap-1">
           ${['todos','pendente','pago'].map(f=>`<button class="btn btn-sm ${contasCasaFiltro===f?'btn-primary':'btn-outline-secondary'}" onclick="renderContasCasa('${f}')">${f==='todos'?'Todos':f==='pendente'?'Pendente':'Pagos'}</button>`).join('')}
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 flex-wrap">
+          <select class="form-select form-select-sm" style="width:170px" onchange="contasCasaMes=this.value;renderContasCasa()">
+            <option value="">Todos os meses</option>
+            ${meses.map(m=>`<option value="${m}" ${contasCasaMes===m?'selected':''}>${new Date(m+'-02').toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}</option>`).join('')}
+          </select>
           <div class="input-group input-group-sm" style="width:220px">
             <input type="text" class="form-control" placeholder="Buscar..." value="${escHtml(contasCasaSearch)}" oninput="contasCasaSearch=this.value;renderContasCasa()">
             <button class="btn btn-outline-secondary" onclick="contasCasaSearch='';renderContasCasa()"><i class="fas fa-times"></i></button>
