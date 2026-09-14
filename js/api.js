@@ -4,13 +4,15 @@ const Cache = {
   vendas: null, itens_venda: null, caixa: null, mov_caixa: null,
   kardex: null, contas_pagar: null, contas_receber: null, sublimacao: null,
   compras: null, contas_casa: null, clientes_cad: null, perfis: null,
+  cartoes: null, lancamentos_cartao: null, construcao: null,
   clear(sheet) { if(sheet) this[sheet]=null; else Object.keys(this).forEach(k=>{ if(typeof this[k]!=='function') this[k]=null; }); }
 };
 
 const DemoData = {
   clientes:[], produtos:[], categorias:[], fornecedores:[], vendas:[],
   itens_venda:[], caixa:[], mov_caixa:[], kardex:[], contas_pagar:[],
-  contas_receber:[], sublimacao:[], compras:[], clientes_cad:[]
+  contas_receber:[], sublimacao:[], compras:[], contas_casa:[], clientes_cad:[],
+  cartoes:[], lancamentos_cartao:[], construcao:[]
 };
 
 function apiDemo_getAll(sheet) { return (DemoData[sheet] || []).filter(r => r.ativo !== 0); }

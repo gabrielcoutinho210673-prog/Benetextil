@@ -13,7 +13,8 @@ function nav(page, sub='') {
   const titles = {
     dashboard:'Dashboard', clientes:'Uniforme', produtos:'Estoque',
     categorias:'Categorias', fornecedores:'Fornecedores', pdv:'PDV — Ponto de Venda',
-    caixa:'Caixa', kardex:'Kardex — Estoque', financeiro:'Financeiro', relatorios:'Relatórios'
+    caixa:'Caixa', kardex:'Kardex — Estoque', financeiro:'Financeiro', relatorios:'Relatórios',
+    cartoes:'Cartões de Crédito'
   };
   document.getElementById('pageTitle').textContent = titles[page] || page;
 
@@ -31,6 +32,7 @@ function nav(page, sub='') {
     produtos:    renderProdutos,
     compras:     renderCompras,
     contascasa:  renderContasCasa,
+    cartoes:     renderCartoes,
     construcao:  renderConstrucao,
     categorias:  renderCategorias,
     fornecedores:renderFornecedores,

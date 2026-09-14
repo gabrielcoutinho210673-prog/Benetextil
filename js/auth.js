@@ -1,5 +1,5 @@
 'use strict';
-const PAGINAS_ADMIN = new Set(['dashboard','financeiro','relatorios','pdv','caixa','kardex','produtos','clientescad','contascasa','sublimacao','compras']);
+const PAGINAS_ADMIN = new Set(['dashboard','financeiro','relatorios','pdv','caixa','kardex','produtos','clientescad','contascasa','sublimacao','compras','cartoes']);
 
 async function conectar() {
   const email = (document.getElementById('loginUser').value || '').trim();
