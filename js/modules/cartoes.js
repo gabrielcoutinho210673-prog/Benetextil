@@ -84,7 +84,10 @@ async function renderCartoes() {
             <div class="card-body">
               <div class="d-flex align-items-center justify-content-between mb-2">
                 <strong>${escHtml(c.nome)}</strong>
-                <span class="badge" style="background:${escHtml(c.cor||'#4361ee')};color:#fff">${fmtMoney(limite)}</span>
+                <div class="d-flex align-items-center gap-2">
+                  <span class="badge" style="background:${escHtml(c.cor||'#4361ee')};color:#fff">${fmtMoney(limite)}</span>
+                  <button class="btn btn-icon btn-outline-secondary btn-sm" style="width:26px;height:26px" title="Editar / Excluir cartão" onclick='event.stopPropagation();formCartao(${JSON.stringify(c)})'><i class="fas fa-cog" style="font-size:11px"></i></button>
+                </div>
               </div>
               <div class="small text-muted mb-1">Fatura ${info.faturaAtual ? fmtFatura(info.faturaAtual) : 'atual'}</div>
               <div class="fs-4 fw-bold mb-2">${fmtMoney(info.valorFaturaAtual)}</div>
@@ -130,9 +133,12 @@ async function abrirFatura(cartaoId, fatura) {
     const venc = fatura ? vencimentoDaFatura(fatura, cartao.dia_vencimento) : null;
 
     document.getElementById('pageContent').innerHTML = `
-    <div class="d-flex align-items-center gap-2 mb-3">
-      <button class="btn btn-outline-secondary btn-sm" onclick="renderCartoes()"><i class="fas fa-arrow-left me-1"></i>Voltar</button>
-      <h5 class="mb-0" style="color:${escHtml(cartao.cor||'#4361ee')}"><i class="fas fa-credit-card me-2"></i>${escHtml(cartao.nome)}</h5>
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <div class="d-flex align-items-center gap-2">
+        <button class="btn btn-outline-secondary btn-sm" onclick="renderCartoes()"><i class="fas fa-arrow-left me-1"></i>Voltar</button>
+        <h5 class="mb-0" style="color:${escHtml(cartao.cor||'#4361ee')}"><i class="fas fa-credit-card me-2"></i>${escHtml(cartao.nome)}</h5>
+      </div>
+      <button class="btn btn-outline-secondary btn-sm" onclick='formCartao(${JSON.stringify(cartao)})'><i class="fas fa-cog me-1"></i>Editar / Excluir Cartão</button>
     </div>
 
     <div class="card mb-3">
