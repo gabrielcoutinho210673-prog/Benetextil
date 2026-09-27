@@ -1,6 +1,63 @@
 'use strict';
 let relTab = 'uniforme';
 
+// ── Categorização de peças pra relatório ────────────────────────────
+// O "Tipo de Peça" do pedido é texto livre — pequenas variações (composição
+// junto, abreviação, erro de digitação) fariam o mesmo tipo de peça virar
+// linhas separadas se agrupássemos pelo texto exato. Normaliza cada texto
+// numa categoria conhecida antes de somar as quantidades no relatório.
+//
+// Ordem da mais específica pra menos específica: uma categoria mais
+// específica precisa ser testada antes da genérica que a contém (ex:
+// "camisa polo" antes de "camisa"). As chaves são sempre frases completas
+// (não palavras soltas), pra "CALÇA SOCIAL" não cair em "Camisa Social" só
+// por ter a palavra "social".
+const CATEGORIAS_PECA = [
+  { categoria: 'Camisa Polo',   chaves: ['camisa polo', 'polo'] },
+  { categoria: 'Camisa Social', chaves: ['camisa social'] },
+  { categoria: 'Camiseta',      chaves: ['camiseta'] },
+  { categoria: 'Moletom',       chaves: ['moletom', 'moleton'] },
+  { categoria: 'Jaqueta',       chaves: ['jaqueta'] },
+  { categoria: 'Colete',        chaves: ['colete'] },
+  { categoria: 'Jaleco',        chaves: ['jaleco'] },
+  { categoria: 'Avental',       chaves: ['avental'] },
+  { categoria: 'Boné',          chaves: ['boné', 'bone'] },
+  { categoria: 'Gravata',       chaves: ['gravata'] },
+  { categoria: 'Lenço',         chaves: ['lenço', 'lenco'] },
+  { categoria: 'Macacão',       chaves: ['macacão', 'macacao'] },
+  { categoria: 'Vestido',       chaves: ['vestido'] },
+  { categoria: 'Saia',          chaves: ['saia'] },
+  { categoria: 'Bermuda',       chaves: ['bermuda'] },
+  { categoria: 'Calça',         chaves: ['calça', 'calca'] },
+  { categoria: 'Camisa',        chaves: ['camisa'] },
+  { categoria: 'Blusa',         chaves: ['blusa'] },
+];
+
+// Função pura: recebe o texto livre do "Tipo de Peça" e devolve a categoria
+// conhecida correspondente. Se não bater com nenhuma, devolve o próprio
+// texto original — nunca esconde num "outros" genérico.
+function normalizarCategoriaPeca(texto) {
+  const t = (texto || '').toLowerCase().trim();
+  if (!t) return texto || 'Sem tipo';
+  for (const { categoria, chaves } of CATEGORIAS_PECA) {
+    if (chaves.some(chave => t.includes(chave))) return categoria;
+  }
+  return texto;
+}
+
+// Extrai as peças (tipo + quantidade) de um pedido de Uniforme, incluindo
+// as peças 2 a 5 (mesmo padrão usado no PDF da Ordem de Fornecimento).
+function pecasDoPedido(p) {
+  const pecas = [];
+  for (let i = 1; i <= 5; i++) {
+    const tipo = i === 1 ? p.tipo_peca : p[`peca${i}_tipo`];
+    const qtd  = parseFloat(i === 1 ? p.quantidade : p[`peca${i}_qtd`]) || 0;
+    if (!tipo && qtd <= 0) continue;
+    pecas.push({ tipo: tipo || 'Sem tipo', qtd });
+  }
+  return pecas;
+}
+
 async function renderRelatorios(tab) {
   if (tab) relTab = tab;
   document.getElementById('pageTitle').textContent = 'Relatórios';
@@ -40,6 +97,18 @@ async function renderRelUniforme() {
     const atrasados = dados.filter(p=>p.data_entrega&&new Date(p.data_entrega+'T00:00:00')<hoje).length;
     const entregues = dados.filter(p=>p.data_entrega&&new Date(p.data_entrega+'T00:00:00')<=hoje).length;
 
+    // peças produzidas por categoria — normaliza o texto livre do tipo de
+    // peça pra não separar em linhas diferentes o que é o mesmo item
+    const porCategoria = {};
+    dados.forEach(p => {
+      pecasDoPedido(p).forEach(({ tipo, qtd }) => {
+        const cat = normalizarCategoriaPeca(tipo);
+        porCategoria[cat] = (porCategoria[cat] || 0) + qtd;
+      });
+    });
+    const categorias = Object.entries(porCategoria).sort((a,b)=>b[1]-a[1]);
+    const maxQtd = categorias.length ? categorias[0][1] : 0;
+
     el.innerHTML = `
     <div class="row g-3 mb-4">
       <div class="col-sm-6 col-xl-3"><div class="stat-card blue"><div class="stat-icon"><i class="fas fa-clipboard-list"></i></div>
@@ -58,6 +127,21 @@ async function renderRelUniforme() {
         <div class="small text-muted">Entregues</div><div class="fs-4 fw-bold text-success">${entregues}</div></div></div>
       <div class="col-md-4"><div class="p-3 rounded text-center" style="background:#eef2ff;border:1px solid #4361ee">
         <div class="small text-muted">Margem Média</div><div class="fs-4 fw-bold text-primary">${total>0?(lucro/total*100).toFixed(1):'0'}%</div></div></div>
+    </div>
+    <div class="card mb-4">
+      <div class="card-header"><i class="fas fa-tshirt text-primary me-2"></i><strong>Peças Produzidas por Categoria</strong></div>
+      <div class="card-body">
+        ${categorias.length ? categorias.map(([cat, qtd]) => `
+          <div class="mb-2">
+            <div class="d-flex justify-content-between small mb-1">
+              <span class="fw-semibold">${escHtml(cat)}</span>
+              <span class="text-muted">${qtd} peça(s)</span>
+            </div>
+            <div class="progress" style="height:8px">
+              <div class="progress-bar" style="width:${maxQtd>0?(qtd/maxQtd*100):0}%;background:#4361ee"></div>
+            </div>
+          </div>`).join('') : '<p class="text-muted mb-0">Nenhuma peça registrada</p>'}
+      </div>
     </div>
     <div class="card">
       <div class="card-header"><i class="fas fa-table text-primary me-2"></i><strong>Todos os Pedidos</strong></div>
