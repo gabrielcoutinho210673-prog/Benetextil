@@ -94,8 +94,8 @@ async function renderRelUniforme() {
     const total = dados.reduce((s,p)=>s+(parseFloat(p.valor_total)||0),0);
     const custo = dados.reduce((s,p)=>s+custoPedido(p),0);
     const lucro = total - custo;
-    const atrasados = dados.filter(p=>p.data_entrega&&new Date(p.data_entrega+'T00:00:00')<hoje).length;
-    const entregues = dados.filter(p=>p.data_entrega&&new Date(p.data_entrega+'T00:00:00')<=hoje).length;
+    const atrasados = dados.filter(p=>p.data_entrega&&!p.entregue&&new Date(p.data_entrega+'T00:00:00')<hoje).length;
+    const entregues = dados.filter(p=>p.entregue).length;
 
     // peças produzidas por categoria — normaliza o texto livre do tipo de
     // peça pra não separar em linhas diferentes o que é o mesmo item

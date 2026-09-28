@@ -27,8 +27,8 @@ async function renderDashboard() {
 
       const hojeDate = new Date(); hojeDate.setHours(0,0,0,0);
       const em3dias = new Date(hojeDate); em3dias.setDate(em3dias.getDate()+3);
-      window._alertasAtraso   = pedidos.filter(p => p.data_entrega && new Date(p.data_entrega+'T00:00:00') < hojeDate);
-      window._alertasProximos = pedidos.filter(p => { if(!p.data_entrega) return false; const d=new Date(p.data_entrega+'T00:00:00'); return d>=hojeDate && d<=em3dias; });
+      window._alertasAtraso   = pedidos.filter(p => p.data_entrega && !p.entregue && new Date(p.data_entrega+'T00:00:00') < hojeDate);
+      window._alertasProximos = pedidos.filter(p => { if(!p.data_entrega || p.entregue) return false; const d=new Date(p.data_entrega+'T00:00:00'); return d>=hojeDate && d<=em3dias; });
       window._contasVencidas  = contasPagar.filter(c => c.status==='pendente' && c.vencimento && new Date(c.vencimento+'T00:00:00') < hojeDate);
       window._contasVencendo  = contasPagar.filter(c => { if(c.status!=='pendente'||!c.vencimento) return false; const d=new Date(c.vencimento+'T00:00:00'); return d>=hojeDate && d<=em3dias; });
     }
