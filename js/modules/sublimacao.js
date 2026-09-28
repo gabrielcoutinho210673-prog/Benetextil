@@ -329,14 +329,14 @@ async function salvarSublimacao(id) {
         const descTecido = `${tag} — Custo do Tecido: ${rotulo}`;
         const existentesPagar0 = await getAll('contas_pagar');
         if (!existentesPagar0.some(c => (c.descricao||'').startsWith(`${tag} — Custo do Tecido:`))) {
-          await insert('compras', {
+          const compraTecido = await insert('compras', {
             descricao: descTecido, fornecedor: 'Benetextil', categoria: 'Matéria-prima',
             valor_total: data.compra_tecido_total, parcelas: 1,
             data_compra: data.data_pedido || vencEdit,
             observacoes: `Gerado automaticamente pela ${tag}`, ativo: 1
           });
           await insert('contas_pagar', {
-            descricao: descTecido, fornecedor: 'Benetextil',
+            descricao: `${descTecido} #${compraTecido.id}`, fornecedor: 'Benetextil',
             valor: data.compra_tecido_total, vencimento: vencEdit, status: 'pendente', ativo: 1
           });
           Cache.clear('compras');
@@ -388,14 +388,14 @@ async function salvarSublimacao(id) {
       const tag = `Sublimação #${novo.id}`;
       const vencCusto = data.data_entrega || data.data_pedido || localDateStr();
       if (data.compra_tecido_total > 0) {
-        await insert('compras', {
+        const compraTecido = await insert('compras', {
           descricao: `${tag} — Custo do Tecido: ${rotulo}`, fornecedor: 'Benetextil', categoria: 'Matéria-prima',
           valor_total: data.compra_tecido_total, parcelas: 1,
           data_compra: data.data_pedido || vencCusto,
           observacoes: `Gerado automaticamente pela ${tag}`, ativo: 1
         });
         await insert('contas_pagar', {
-          descricao: `${tag} — Custo do Tecido: ${rotulo}`, fornecedor: 'Benetextil',
+          descricao: `${tag} — Custo do Tecido: ${rotulo} #${compraTecido.id}`, fornecedor: 'Benetextil',
           valor: data.compra_tecido_total, vencimento: vencCusto, status: 'pendente', ativo: 1
         });
         Cache.clear('compras');
