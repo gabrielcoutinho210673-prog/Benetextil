@@ -102,7 +102,7 @@ async function renderCompras(search) {
                 <td><span class="badge bg-secondary">${escHtml(r.categoria || '—')}</span></td>
                 <td><small>${fmtDate(r.data_compra)}</small></td>
                 <td><small>${r.parcelas > 1 ? `${r.parcelas}x` : 'À vista'}</small></td>
-                <td class="fw-bold text-primary">${fmtMoney(r.valor_total)}</td>
+                <td class="fw-bold text-primary">${fmtMoney(r.valor_total)}${r.valor_entrada > 0 ? `<br><small class="text-muted fw-normal">entrada ${fmtMoney(r.valor_entrada)}</small>` : ''}</td>
                 <td><span class="badge ${st.cls}">${st.label}</span></td>
                 <td class="text-end pe-3">
                   ${temPendente ? `<button class="btn btn-icon btn-outline-success btn-sm" title="Quitar parcelas pendentes" onclick="quitarCompra(${r.id})"><i class="fas fa-check"></i></button>` : ''}
@@ -140,11 +140,14 @@ async function formCompras(r = {}) {
     <div class="col-md-3"><label class="form-label fw-semibold">VALOR TOTAL (R$) *</label>
       <div class="input-group"><span class="input-group-text">R$</span>
         <input type="number" class="form-control" id="cValor" step="0.01" min="0" value="${r.valor_total || ''}" oninput="atualizarPreviewParcelasCompra()"></div></div>
+    <div class="col-md-3"><label class="form-label fw-semibold">VALOR DE ENTRADA (R$)</label>
+      <div class="input-group"><span class="input-group-text">R$</span>
+        <input type="number" class="form-control" id="cEntrada" step="0.01" min="0" value="${r.valor_entrada || ''}" oninput="atualizarPreviewParcelasCompra()" placeholder="0,00"></div></div>
     <div class="col-md-3"><label class="form-label fw-semibold">FORMA DE PAGAMENTO</label>
       <select class="form-select" id="cFormaPag">
         ${formasPag.map(f => `<option value="${f}" ${(r.forma_pagamento || '') === f ? 'selected' : ''}>${f || '—'}</option>`).join('')}
       </select></div>
-    <div class="col-md-3"><label class="form-label fw-semibold">PARCELAMENTO</label>
+    <div class="col-md-3"><label class="form-label fw-semibold">PARCELAMENTO (sobre o saldo financiado)</label>
       <select class="form-select" id="cParcelas" onchange="atualizarPreviewParcelasCompra()">
         ${Array.from({length:24},(_,i)=>i+1).map(n => `<option value="${n}" ${(r.parcelas || 1) == n ? 'selected' : ''}>${n === 1 ? 'À Vista (1x)' : n + 'x'}</option>`).join('')}
       </select></div>
@@ -179,18 +182,21 @@ async function formCompras(r = {}) {
 function atualizarPreviewParcelasCompra() {
   const n = parseInt(document.getElementById('cParcelas')?.value) || 1;
   const total = parseFloat(document.getElementById('cValor')?.value) || 0;
+  const entrada = parseFloat(document.getElementById('cEntrada')?.value) || 0;
   const el = document.getElementById('cPreviewParcelasCompra');
   if (!el) return;
-  if (n <= 1 || total === 0) { el.innerHTML = ''; return; }
-  const parcela = total / n;
+  const financiado = Math.max(total - entrada, 0);
+  if (total === 0 || (n <= 1 && entrada === 0)) { el.innerHTML = ''; return; }
+  const parcela = financiado / n;
   el.innerHTML = `<div class="p-2 rounded" style="background:#f0f4ff;border:1px solid #c7d2fe;font-size:0.85rem">
+    ${entrada > 0 ? `Entrada de <strong>${entrada.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong> + ` : ''}
     <strong>${n}x de ${parcela.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong>
     — lançadas em Contas a Pagar a partir da data da compra
   </div>`;
 }
 
-async function criarParcelasCompra(compraId, descricao, valorTotal, parcelas, dataCompra, fornecedor) {
-  const parcela = parseFloat((valorTotal / parcelas).toFixed(2));
+async function criarParcelasCompra(compraId, descricao, valorFinanciado, parcelas, dataCompra, fornecedor) {
+  const parcela = parseFloat((valorFinanciado / parcelas).toFixed(2));
   const [ano, mes, dia] = dataCompra.split('-').map(Number);
   for (let i = 0; i < parcelas; i++) {
     const d = new Date(ano, mes - 1 + i, dia);
@@ -208,12 +214,15 @@ async function salvarCompras(id) {
   if (salvandoCompra) return; // trava contra duplo clique
   const descricao  = document.getElementById('cDescricao').value.trim();
   const valorTotal = parseFloat(document.getElementById('cValor').value) || 0;
+  const valorEntrada = parseFloat(document.getElementById('cEntrada')?.value) || 0;
   const dataCompra = document.getElementById('cData').value;
   const parcelas   = parseInt(document.getElementById('cParcelas').value) || 1;
   const fornecedor = document.getElementById('cFornecedor').value.trim();
   const formaPag   = document.getElementById('cFormaPag')?.value || '';
   if (!descricao)  { toast('Descrição obrigatória', 'danger'); return; }
   if (!valorTotal) { toast('Valor obrigatório', 'danger'); return; }
+  if (valorEntrada > valorTotal) { toast('A entrada não pode ser maior que o valor total', 'danger'); return; }
+  const valorFinanciado = valorTotal - valorEntrada;
   salvandoCompra = true;
 
   const obj = {
@@ -221,6 +230,7 @@ async function salvarCompras(id) {
     fornecedor,
     categoria:       document.getElementById('cCategoria').value.trim(),
     valor_total:     valorTotal,
+    valor_entrada:   valorEntrada,
     parcelas,
     data_compra:     dataCompra,
     forma_pagamento: formaPag,
@@ -239,14 +249,14 @@ async function salvarCompras(id) {
         toast('Compra atualizada. Há parcelas já pagas — os lançamentos no Financeiro não foram alterados.', 'warning');
       } else {
         for (const p of existentes.filter(p => p.status === 'pendente')) await remove('contas_pagar', p.id);
-        await criarParcelasCompra(id, descricao, valorTotal, parcelas, dataCompra, fornecedor);
+        if (valorFinanciado > 0) await criarParcelasCompra(id, descricao, valorFinanciado, parcelas, dataCompra, fornecedor);
         Cache.clear('contas_pagar');
         toast('Compra e parcelas atualizadas!');
       }
     } else {
       const novo = await insert('compras', obj);
       const compraId = novo.id;
-      await criarParcelasCompra(compraId, descricao, valorTotal, parcelas, dataCompra, fornecedor);
+      if (valorFinanciado > 0) await criarParcelasCompra(compraId, descricao, valorFinanciado, parcelas, dataCompra, fornecedor);
       Cache.clear('contas_pagar');
 
       // entrada automática no estoque, se vinculado a um produto
