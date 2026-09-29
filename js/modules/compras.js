@@ -28,6 +28,8 @@ async function renderCompras(search) {
 
     const mesesSet = new Set();
     const catSet = new Set();
+    const anoAtual = new Date().getFullYear();
+    for (let m = 1; m <= 12; m++) mesesSet.add(`${anoAtual}-${String(m).padStart(2,'0')}`);
     todas.forEach(r => {
       if (r.data_compra) mesesSet.add(r.data_compra.slice(0, 7));
       if (r.categoria) catSet.add(r.categoria);
