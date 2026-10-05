@@ -9,9 +9,7 @@ async function renderSublimacao(search) {
   try {
     let dados = await getAll('sublimacao');
 
-    const mesesSet = new Set();
-    dados.forEach(r => { if (r.data_pedido) mesesSet.add(r.data_pedido.slice(0,7)); });
-    const meses = Array.from(mesesSet).sort().reverse();
+    const meses = mesesComAno(dados.map(r => r.data_pedido));
 
     if (sublimacaoSearch) dados = dados.filter(r => (r.descricao+' '+r.tecido+' '+r.cod_cor).toLowerCase().includes(sublimacaoSearch.toLowerCase()));
     if (sublimacaoMes) dados = dados.filter(r => (r.data_pedido||'').startsWith(sublimacaoMes));

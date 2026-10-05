@@ -1,4 +1,11 @@
 'use strict';
+const mesesComAno = (datas) => {
+  const set = new Set();
+  const ano = new Date().getFullYear();
+  for (let m = 1; m <= 12; m++) set.add(`${ano}-${String(m).padStart(2,'0')}`);
+  (datas || []).forEach(d => { if (d && /^\d{4}-\d{2}/.test(d)) set.add(d.slice(0,7)); });
+  return Array.from(set).sort().reverse();
+};
 const localDateStr = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
 const fmtMoney    = v => 'R$ ' + parseFloat(v||0).toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'.');
 const parseMoney  = v => parseFloat(String(v).replace(/\./g,'').replace(',','.')) || 0;

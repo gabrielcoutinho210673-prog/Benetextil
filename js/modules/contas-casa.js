@@ -9,9 +9,7 @@ async function renderContasCasa(filtro) {
   document.getElementById('pageContent').innerHTML = loading();
   try {
     const todos = await getAll('contas_casa');
-    const mesesSet = new Set();
-    todos.forEach(r => { if (r.vencimento) mesesSet.add(r.vencimento.slice(0,7)); });
-    const meses = Array.from(mesesSet).sort().reverse();
+    const meses = mesesComAno(todos.map(r => r.vencimento));
 
     let dados = todos;
     if (contasCasaSearch) dados = dados.filter(r => (r.descricao+' '+r.categoria+' '+r.fornecedor).toLowerCase().includes(contasCasaSearch.toLowerCase()));

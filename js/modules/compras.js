@@ -26,15 +26,9 @@ async function renderCompras(search) {
   try {
     const [todas, todasPagar] = await Promise.all([getAll('compras'), getAll('contas_pagar')]);
 
-    const mesesSet = new Set();
     const catSet = new Set();
-    const anoAtual = new Date().getFullYear();
-    for (let m = 1; m <= 12; m++) mesesSet.add(`${anoAtual}-${String(m).padStart(2,'0')}`);
-    todas.forEach(r => {
-      if (r.data_compra) mesesSet.add(r.data_compra.slice(0, 7));
-      if (r.categoria) catSet.add(r.categoria);
-    });
-    const meses = Array.from(mesesSet).sort().reverse();
+    todas.forEach(r => { if (r.categoria) catSet.add(r.categoria); });
+    const meses = mesesComAno(todas.map(r => r.data_compra));
     const categorias = Array.from(catSet).sort();
 
     let dados = todas;

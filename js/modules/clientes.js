@@ -27,9 +27,7 @@ async function renderClientes(search) {
   try {
     const todos = await getAll('clientes');
 
-    const mesesSet = new Set();
-    todos.forEach(c => { if (c.data_pedido) mesesSet.add(c.data_pedido.slice(0,7)); });
-    const meses = Array.from(mesesSet).sort().reverse();
+    const meses = mesesComAno(todos.map(c => c.data_pedido));
 
     let base = todos;
     if (clienteSearch) base = base.filter(c => (c.nome+' '+c.telefone+' '+c.tipo_peca).toLowerCase().includes(clienteSearch.toLowerCase()));

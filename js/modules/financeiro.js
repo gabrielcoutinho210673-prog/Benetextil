@@ -12,15 +12,7 @@ let salvandoContaFin = false;
 // ano corrente, e também qualquer outro mês que tenha lançamento (datas mal
 // digitadas, tipo "20226-07", são ignoradas em vez de aparecer como "Invalid Date").
 function mesesFinanceiro(registros) {
-  const mesesSet = new Set();
-  registros.forEach(r => {
-    if (r.vencimento && /^\d{4}-\d{2}/.test(r.vencimento)) mesesSet.add(r.vencimento.slice(0,7));
-  });
-  const hoje = new Date();
-  for (let m = 0; m <= hoje.getMonth(); m++) {
-    mesesSet.add(`${hoje.getFullYear()}-${String(m+1).padStart(2,'0')}`);
-  }
-  return Array.from(mesesSet).sort().reverse();
+  return mesesComAno(registros.map(r => r.vencimento));
 }
 
 function renderFinanceiro(tab) {
