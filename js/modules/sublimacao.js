@@ -91,7 +91,7 @@ function formSublimacao(r={}) {
     </div>
     <div class="col-md-6"><label class="form-label fw-semibold">NOME *</label><input class="form-control" id="sNomeCliente" value="${v('nome_cliente')}" placeholder="Nome do cliente"></div>
     <div class="col-md-3"><label class="form-label fw-semibold">TELEFONE</label><input class="form-control" id="sTelefoneCliente" value="${v('telefone_cliente')}" placeholder="(00) 00000-0000"></div>
-    <div class="col-md-3"><label class="form-label fw-semibold">DATA DO PEDIDO</label><input type="date" class="form-control" id="sDataPedido" value="${v('data_pedido')||localDateStr()}"></div>
+    <div class="col-md-3"><label class="form-label fw-semibold">DATA DO PEDIDO *</label><input type="date" class="form-control" id="sDataPedido" value="${v('data_pedido')||localDateStr()}" onchange="document.getElementById('sDataEntrega').min=this.value"></div>
     <div class="col-12"><label class="form-label fw-semibold">ENDEREÇO</label><input class="form-control" id="sEndereco" value="${v('endereco_cliente')}" placeholder="Endereço do cliente"></div>
 
     <div class="col-12 mt-1"><div class="d-flex align-items-center gap-2 mb-1" style="border-bottom:2px solid #4361ee;padding-bottom:4px">
@@ -163,8 +163,8 @@ function formSublimacao(r={}) {
     <div class="col-12 mt-1"><div class="d-flex align-items-center gap-2 mb-1" style="border-bottom:2px solid #4361ee;padding-bottom:4px">
       <i class="fas fa-dollar-sign text-primary"></i><strong class="text-primary">PRAZO E VALOR DE VENDA</strong></div></div>
     <div class="col-md-3">
-      <label class="form-label fw-semibold">DATA DE ENTREGA</label>
-      <input type="date" class="form-control" id="sDataEntrega" value="${v('data_entrega')}">
+      <label class="form-label fw-semibold">DATA DE ENTREGA *</label>
+      <input type="date" class="form-control" id="sDataEntrega" value="${v('data_entrega')}" min="${v('data_pedido')||localDateStr()}">
     </div>
     <div class="col-md-3">
       <label class="form-label fw-semibold">VALOR COBRADO DO TECIDO (R$)</label>
@@ -284,6 +284,11 @@ function calcTotalSublimacao() {
 
 async function salvarSublimacao(id) {
   if (salvandoSublimacao) return; // trava contra duplo clique / clique repetido enquanto salva
+  const dPed = document.getElementById('sDataPedido').value;
+  const dEnt = document.getElementById('sDataEntrega').value;
+  if (!dPed) { toast('Informe a Data do Pedido','danger'); return; }
+  if (!dEnt) { toast('Informe a Data de Entrega','danger'); return; }
+  if (dEnt < dPed) { toast('A Data de Entrega não pode ser anterior à Data do Pedido','danger'); return; }
   salvandoSublimacao = true;
   const descricao = document.getElementById('sDesc').value.trim();
   const data = {

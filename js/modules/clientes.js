@@ -134,7 +134,7 @@ function formCliente(c={}) {
     <div class="col-md-5"><label class="form-label">Nome *</label><input class="form-control" id="cNome" value="${v('nome')}"></div>
     <div class="col-md-3"><label class="form-label">CPF / CNPJ</label><input class="form-control" id="cCpfCnpj" placeholder="000.000.000-00" value="${v('cpf_cnpj')}"></div>
     <div class="col-md-2"><label class="form-label">Telefone</label><input class="form-control" id="cTel" value="${v('telefone')}"></div>
-    <div class="col-md-2"><label class="form-label">Data do Pedido</label><input type="date" class="form-control" id="cDataPedido" value="${v('data_pedido')||hoje}"></div>
+    <div class="col-md-2"><label class="form-label">Data do Pedido *</label><input type="date" class="form-control" id="cDataPedido" value="${v('data_pedido')||hoje}" onchange="document.getElementById('cDataEntrega').min=this.value"></div>
     <div class="col-12"><label class="form-label">Endereço</label><input class="form-control" id="cEnd" value="${v('endereco')}"></div>
 
     ${secTitle('tshirt','DESCRIÇÃO DO SERVIÇO')}
@@ -187,7 +187,7 @@ function formCliente(c={}) {
     </div>
 
     ${secTitle('dollar-sign','PRAZO E VALORES')}
-    <div class="col-md-3"><label class="form-label">Data de Entrega</label><input type="date" class="form-control" id="cDataEntrega" value="${v('data_entrega')}"></div>
+    <div class="col-md-3"><label class="form-label">Data de Entrega *</label><input type="date" class="form-control" id="cDataEntrega" value="${v('data_entrega')}" min="${v('data_pedido')||hoje}"></div>
     <div class="col-md-3"><label class="form-label">Valor Total (R$)</label><input type="number" class="form-control" id="cValorTotal" step="0.01" value="${v('valor_total')}" oninput="calcResumo()"></div>
     <div class="col-md-3"><label class="form-label">Entrada (R$)</label><input type="number" class="form-control" id="cEntrada" step="0.01" value="${v('entrada')}"></div>
     <div class="col-md-3"><label class="form-label">Forma de Pagamento</label>
@@ -610,6 +610,11 @@ async function salvarCliente(id) {
   if (salvandoCliente) return; // trava contra duplo clique / clique repetido enquanto salva
   const nome = document.getElementById('cNome').value.trim();
   if (!nome) { toast('Nome é obrigatório','danger'); return; }
+  const dPed = document.getElementById('cDataPedido').value;
+  const dEnt = document.getElementById('cDataEntrega').value;
+  if (!dPed) { toast('Informe a Data do Pedido','danger'); return; }
+  if (!dEnt) { toast('Informe a Data de Entrega','danger'); return; }
+  if (dEnt < dPed) { toast('A Data de Entrega não pode ser anterior à Data do Pedido','danger'); return; }
   salvandoCliente = true;
 
   const silkQtd    = parseInt(document.getElementById('silkQtd')?.value)||0;
