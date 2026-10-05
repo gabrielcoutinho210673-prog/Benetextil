@@ -14,7 +14,20 @@ async function renderSublimacao(search) {
     if (sublimacaoSearch) dados = dados.filter(r => (r.descricao+' '+r.tecido+' '+r.cod_cor).toLowerCase().includes(sublimacaoSearch.toLowerCase()));
     if (sublimacaoMes) dados = dados.filter(r => (r.data_pedido||'').startsWith(sublimacaoMes));
 
+    let somaGasto = 0, somaVenda = 0;
+    dados.forEach(r => {
+      somaGasto += [r.uber, r.almoco, r.gasolina, r.estacionamento, r.brim, r.mao_obra_anderson, r.compra_tecido_total].reduce((s,v)=>s+(parseFloat(v)||0),0);
+      somaVenda += parseFloat(r.valor_venda)||0;
+    });
+    const somaLucro = somaVenda - somaGasto;
+
     document.getElementById('pageContent').innerHTML = `
+    <div class="row g-2 mb-3">
+      <div class="col-6"><div class="p-2 rounded text-center" style="background:#fee2e2;border:1px solid #dc2626">
+        <div class="small text-muted">Gasto</div><strong class="text-danger">${fmtMoney(somaGasto)}</strong></div></div>
+      <div class="col-6"><div class="p-2 rounded text-center" style="background:${somaLucro>=0?'#d1fae5':'#fee2e2'};border:1px solid ${somaLucro>=0?'#10b981':'#dc2626'}">
+        <div class="small text-muted">Lucro</div><strong class="${somaLucro>=0?'text-success':'text-danger'}">${fmtMoney(somaLucro)}</strong></div></div>
+    </div>
     <div class="card">
       <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
         <h6><i class="fas fa-paint-brush me-2"></i>${dados.length} registro(s)</h6>
