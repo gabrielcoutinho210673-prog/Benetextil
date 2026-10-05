@@ -22,6 +22,25 @@ const AVIAMENTOS_LIST = [
   {key:'tela',            label:'TELA'},
 ];
 
+function gastoDoPedido(p) {
+  const n = k => parseFloat(p[k]) || 0;
+  let total = n('tecido_valor');
+  for (let i = 2; i <= 5; i++) total += n(`peca${i}_tecido_valor`);
+  for (let i = 1; i <= 5; i++) total += n(`costura_qtd_${i}`) * n(`costura_val_${i}`);
+  for (let i = 1; i <= 5; i++) {
+    try {
+      Object.values(JSON.parse(p[`peca${i}_aviamentos`] || '{}')).forEach(a => { total += a.total || (a.qtd * a.val) || 0; });
+    } catch(e) {}
+  }
+  total += n('corte_qtd') * n('corte_valor');
+  for (let i = 1; i <= 4; i++) total += n(`silk_qtd_${i}`) * n(`silk_val_${i}`);
+  total += n('bordado_pecas_qtd') * n('bordado_pecas_val');
+  total += n('caseado_qtd') * n('caseado_val');
+  total += n('travete_qtd') * n('travete_val');
+  total += n('uber') + n('almoco') + n('gasolina') + n('estacionamento');
+  return total;
+}
+
 async function renderClientes(search) {
   if (search !== undefined) clienteSearch = search;
   try {
@@ -38,6 +57,10 @@ async function renderClientes(search) {
     const qtdAtraso = base.filter(isAtraso).length;
     const qtdPrazo  = base.length - qtdAtraso;
 
+    const somaGasto = base.reduce((s,c)=>s+gastoDoPedido(c),0);
+    const somaVenda = base.reduce((s,c)=>s+(parseFloat(c.valor_total)||0),0);
+    const somaLucro = somaVenda - somaGasto;
+
     let dados = base;
     if (clienteFiltro === 'atraso') dados = dados.filter(isAtraso);
     if (clienteFiltro === 'prazo')  dados = dados.filter(c => !isAtraso(c));
@@ -47,6 +70,8 @@ async function renderClientes(search) {
       <div class="col-4"><div class="p-2 rounded text-center" style="background:#eef2ff;border:1px solid #4361ee"><div class="small text-muted">Total</div><strong class="text-primary">${base.length}</strong></div></div>
       <div class="col-4"><div class="p-2 rounded text-center" style="background:#fee2e2;border:1px solid #dc2626"><div class="small text-muted">Em Atraso</div><strong class="text-danger">${qtdAtraso}</strong></div></div>
       <div class="col-4"><div class="p-2 rounded text-center" style="background:#d1fae5;border:1px solid #10b981"><div class="small text-muted">No Prazo</div><strong class="text-success">${qtdPrazo}</strong></div></div>
+      <div class="col-6"><div class="p-2 rounded text-center" style="background:#fee2e2;border:1px solid #dc2626"><div class="small text-muted">Gasto</div><strong class="text-danger">${fmtMoney(somaGasto)}</strong></div></div>
+      <div class="col-6"><div class="p-2 rounded text-center" style="background:${somaLucro>=0?'#d1fae5':'#fee2e2'};border:1px solid ${somaLucro>=0?'#10b981':'#dc2626'}"><div class="small text-muted">Lucro</div><strong class="${somaLucro>=0?'text-success':'text-danger'}">${fmtMoney(somaLucro)}</strong></div></div>
     </div>
     <div class="card">
       <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
