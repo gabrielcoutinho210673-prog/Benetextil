@@ -91,7 +91,7 @@ function formSublimacao(r={}) {
     </div>
     <div class="col-md-6"><label class="form-label fw-semibold">NOME *</label><input class="form-control" id="sNomeCliente" value="${v('nome_cliente')}" placeholder="Nome do cliente"></div>
     <div class="col-md-3"><label class="form-label fw-semibold">TELEFONE</label><input class="form-control" id="sTelefoneCliente" value="${v('telefone_cliente')}" placeholder="(00) 00000-0000"></div>
-    <div class="col-md-3"><label class="form-label fw-semibold">DATA DO PEDIDO *</label><input type="date" class="form-control" id="sDataPedido" value="${v('data_pedido')||localDateStr()}" onchange="document.getElementById('sDataEntrega').min=this.value"></div>
+    <div class="col-md-3"><label class="form-label fw-semibold">DATA DO PEDIDO *</label><input type="date" class="form-control" id="sDataPedido" value="${v('data_pedido')}" onchange="document.getElementById('sDataEntrega').min=this.value"></div>
     <div class="col-12"><label class="form-label fw-semibold">ENDEREÇO</label><input class="form-control" id="sEndereco" value="${v('endereco_cliente')}" placeholder="Endereço do cliente"></div>
 
     <div class="col-12 mt-1"><div class="d-flex align-items-center gap-2 mb-1" style="border-bottom:2px solid #4361ee;padding-bottom:4px">
@@ -164,7 +164,7 @@ function formSublimacao(r={}) {
       <i class="fas fa-dollar-sign text-primary"></i><strong class="text-primary">PRAZO E VALOR DE VENDA</strong></div></div>
     <div class="col-md-3">
       <label class="form-label fw-semibold">DATA DE ENTREGA *</label>
-      <input type="date" class="form-control" id="sDataEntrega" value="${v('data_entrega')}" min="${v('data_pedido')||localDateStr()}">
+      <input type="date" class="form-control" id="sDataEntrega" value="${v('data_entrega')}" min="${v('data_pedido')}">
     </div>
     <div class="col-md-3">
       <label class="form-label fw-semibold">VALOR COBRADO DO TECIDO (R$)</label>
