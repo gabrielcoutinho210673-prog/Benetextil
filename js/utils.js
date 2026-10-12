@@ -39,6 +39,12 @@ function openModal(titulo, corpo, rodape='', size='') {
   new bootstrap.Modal(document.getElementById('modalGenerico')).show();
 }
 
+function reabrirModal(fn) {
+  const el = document.getElementById('modalGenerico');
+  el.addEventListener('hidden.bs.modal', () => fn(), { once: true });
+  closeModal();
+}
+
 function closeModal() { bootstrap.Modal.getInstance(document.getElementById('modalGenerico'))?.hide(); }
 
 function badgeStatus(s) {

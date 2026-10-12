@@ -352,6 +352,7 @@ function formCliente(c={}) {
 
   </div>`,
   `<button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+   ${c.id?'':`<button class="btn btn-outline-primary" onclick="salvarCliente(0,true)"><i class="fas fa-plus me-1"></i>Cadastrar e novo</button>`}
    <button class="btn btn-primary" onclick="salvarCliente(${c.id||0})"><i class="fas fa-save me-1"></i>${c.id?'Atualizar':'Cadastrar'}</button>`,
   'xl'
   );
@@ -631,7 +632,7 @@ function calcResumo() {
   }
 }
 
-async function salvarCliente(id) {
+async function salvarCliente(id, outro) {
   if (salvandoCliente) return; // trava contra duplo clique / clique repetido enquanto salva
   const nome = document.getElementById('cNome').value.trim();
   if (!nome) { toast('Nome é obrigatório','danger'); return; }
@@ -896,7 +897,8 @@ async function salvarCliente(id) {
       toast(`Pedido cadastrado! ✔ A Receber: ${fmtMoney(data.valor_total)} | Custos: ${fmtMoney(totalCustos)} | Margem: ${fmtMoney(lucro)}`);
       try { gerarOrdemFornecimento('uniforme', { ...data, id: pedidoId }); } catch(e) {}
     }
-    closeModal(); renderClientes();
+    if (outro) reabrirModal(() => formCliente()); else closeModal();
+    renderClientes();
   } catch(e) { toast(e.message,'danger'); }
   finally { salvandoCliente = false; }
 }

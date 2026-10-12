@@ -214,6 +214,7 @@ function formSublimacao(r={}) {
     </div>
   </div>`,
   `<button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+   ${r.id?'':`<button class="btn btn-outline-primary" onclick="salvarSublimacao(0,true)"><i class="fas fa-plus me-1"></i>Salvar e novo</button>`}
    <button class="btn btn-primary" onclick="salvarSublimacao(${r.id||0})"><i class="fas fa-save me-1"></i>${r.id?'Atualizar':'Salvar'}</button>`,
   'lg'
   );
@@ -295,7 +296,7 @@ function calcTotalSublimacao() {
   }
 }
 
-async function salvarSublimacao(id) {
+async function salvarSublimacao(id, outro) {
   if (salvandoSublimacao) return; // trava contra duplo clique / clique repetido enquanto salva
   const dPed = document.getElementById('sDataPedido').value;
   const dEnt = document.getElementById('sDataEntrega').value;
@@ -451,7 +452,8 @@ async function salvarSublimacao(id) {
       }
       try { gerarOrdemFornecimento('sublimacao', { ...data, id: novo.id }); } catch(e) {}
     }
-    closeModal(); renderSublimacao();
+    if (outro) reabrirModal(() => formSublimacao()); else closeModal();
+    renderSublimacao();
   } catch(e) { toast(e.message,'danger'); }
   finally { salvandoSublimacao = false; }
 }
