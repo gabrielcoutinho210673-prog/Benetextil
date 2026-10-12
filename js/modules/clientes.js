@@ -169,6 +169,7 @@ function formCliente(c={}) {
       <div class="peca-linha" id="pecaLinha${i}" style="${i>1?'display:none':''}">
         <div class="d-flex align-items-center gap-2 my-2" style="border-bottom:2px solid #4361ee;padding-bottom:4px">
           <i class="fas fa-tshirt text-primary"></i><strong class="text-primary">PEÇA ${i}</strong>
+          ${i>1?`<button type="button" class="btn btn-sm btn-outline-danger ms-auto py-0" onclick="removerPeca(${i})"><i class="fas fa-trash me-1"></i>Remover peça</button>`:''}
         </div>
         <div class="row g-2 mb-2">
           <div class="col-md-4"><label class="form-label">Tipo de Peça</label><input class="form-control" id="cTipoPeca${i}" value="${v(i===1?'tipo_peca':`peca${i}_tipo`)}"></div>
@@ -209,6 +210,10 @@ function formCliente(c={}) {
           </div>
         </div>
       </div>`).join('')}
+    </div>
+    <div class="col-12">
+      <button type="button" class="btn btn-outline-primary btn-sm" id="btnAddPeca" onclick="adicionarPeca()"><i class="fas fa-plus me-1"></i>Adicionar peça</button>
+      <small class="text-muted ms-2">Até 5 peças no mesmo pedido (ex: camisa + calça)</small>
     </div>
 
     ${secTitle('dollar-sign','PRAZO E VALORES')}
@@ -527,6 +532,28 @@ function renderLinhasPeca() {
     const el = document.getElementById('pecaLinha'+i);
     if (el) el.style.display = i <= n ? '' : 'none';
   }
+  const btn = document.getElementById('btnAddPeca');
+  if (btn) btn.style.display = n >= 5 ? 'none' : '';
+}
+
+function adicionarPeca() {
+  const el = document.getElementById('cQtdTipos');
+  const n = parseInt(el.value)||1;
+  if (n >= 5) return;
+  el.value = n + 1;
+  renderLinhasPeca();
+  document.getElementById('pecaLinha'+(n+1))?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  document.getElementById('cTipoPeca'+(n+1))?.focus();
+}
+
+function removerPeca(i) {
+  const el = document.getElementById('cQtdTipos');
+  const n = parseInt(el.value)||1;
+  if (i !== n) { toast('Remova primeiro a última peça (Peça ' + n + ')', 'warning'); return; }
+  document.querySelectorAll(`#pecaLinha${i} input`).forEach(inp => { inp.value = ''; });
+  el.value = n - 1;
+  renderLinhasPeca();
+  calcResumo();
 }
 
 function calcResumo() {
