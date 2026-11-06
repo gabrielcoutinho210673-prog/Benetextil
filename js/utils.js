@@ -9,7 +9,42 @@ const mesesComAno = (datas) => {
 const localDateStr = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
 const fmtMoney    = v => 'R$ ' + parseFloat(v||0).toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'.');
 const parseMoney  = v => parseFloat(String(v).replace(/\./g,'').replace(',','.')) || 0;
-const fmtDate     = d => { if(!d) return '—'; const dt=new Date(d); return isNaN(dt)?d:dt.toLocaleDateString('pt-BR'); };
+// 'AAAA-MM-DD' puro é lido como UTC pelo Date, o que no Brasil mostraria o dia anterior
+const fmtDate     = d => { if(!d) return '—'; const dt=new Date(/^\d{4}-\d{2}-\d{2}$/.test(d)?d+'T00:00:00':d); return isNaN(dt)?d:dt.toLocaleDateString('pt-BR'); };
+const somaDias    = (dataStr, dias) => { if(!dataStr) return ''; const d=new Date(dataStr+'T00:00:00'); d.setDate(d.getDate()+dias); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+
+// Cronograma de pagamento do pedido: entrada + saldo em N parcelas a cada X dias.
+// Pedidos sem esses campos continuam como antes: entrada na data do pedido e
+// saldo em 1x na data de entrega.
+function condicoesPagamento(r) {
+  const total     = parseFloat(r.valor_total ?? r.valor_venda) || 0;
+  const entrada   = Math.min(parseFloat(r.entrada) || 0, total);
+  const n         = Math.max(parseInt(r.parcelas_qtd) || 1, 1);
+  const intervalo = parseInt(r.parcelas_intervalo) || 30;
+  const primeiro  = r.parcelas_primeiro_venc || r.data_entrega || r.data_pedido || '';
+  const saldo     = Math.round((total - entrada) * 100) / 100;
+
+  const linhas = [];
+  if (entrada > 0) linhas.push({ label: 'Entrada', venc: r.entrada_data || r.data_pedido || '', valor: entrada });
+  if (saldo > 0) {
+    const base = Math.floor(saldo / n * 100) / 100;
+    for (let i = 0; i < n; i++) {
+      const valor = i === n - 1 ? Math.round((saldo - base * (n - 1)) * 100) / 100 : base;
+      linhas.push({ label: n > 1 ? `Parcela ${i + 1}/${n}` : 'Saldo', venc: somaDias(primeiro, i * intervalo), valor });
+    }
+  }
+  if (!linhas.length) linhas.push({ label: 'Único', venc: r.data_entrega || r.data_pedido || '', valor: total });
+
+  let resumo;
+  const parcelado = n > 1 ? `${n}x de ${fmtMoney(saldo / n)} (a cada ${intervalo} dias, 1ª em ${fmtDate(primeiro)})` : `saldo de ${fmtMoney(saldo)} em ${fmtDate(primeiro)}`;
+  if (entrada > 0 && saldo > 0) resumo = `Entrada de ${fmtMoney(entrada)} + ${parcelado}`;
+  else if (entrada > 0)         resumo = `À vista — ${fmtMoney(entrada)} em ${fmtDate(r.entrada_data || r.data_pedido)}`;
+  else if (n > 1)               resumo = parcelado.charAt(0).toUpperCase() + parcelado.slice(1);
+  else                          resumo = `Pagamento único de ${fmtMoney(total)} em ${fmtDate(linhas[0].venc)}`;
+  if (r.forma_pagamento) resumo = `${r.forma_pagamento} — ${resumo}`;
+
+  return { linhas, resumo };
+}
 const fmtDateTime = d => { if(!d) return '—'; const dt=new Date(d); return isNaN(dt)?d:dt.toLocaleString('pt-BR'); };
 const escHtml     = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 

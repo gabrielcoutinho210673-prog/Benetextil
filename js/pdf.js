@@ -115,20 +115,15 @@ function gerarOrdemFornecimento(tipo, r) {
 
   if (y > 250) { doc.addPage(); y = M; }
 
-  // Condições financeiras — usa entrada/saldo já cadastrados no pedido
+  // Condições financeiras — entrada + parcelas cadastradas no pedido
   secao('CONDIÇÕES FINANCEIRAS');
   y += 1;
-  const entrada = parseFloat(r.entrada) || 0;
-  const saldo = valorTotal - entrada;
-  const parcelas = [];
-  if (entrada > 0) parcelas.push(['Entrada', fmtDate(r.data_pedido), fmtMoney(entrada)]);
-  if (saldo > 0) parcelas.push(['Saldo', r.data_entrega ? fmtDate(r.data_entrega) : '-', fmtMoney(saldo)]);
-  if (!parcelas.length) parcelas.push(['Único', fmtDate(r.data_entrega || r.data_pedido), fmtMoney(valorTotal)]);
+  const cond = condicoesPagamento(r);
   doc.autoTable({
     startY: y,
     margin: { left: M, right: M },
     head: [['Parcela', 'Vencimento', 'Valor da Parcela']],
-    body: parcelas,
+    body: cond.linhas.map(p => [p.label, p.venc ? fmtDate(p.venc) : '-', fmtMoney(p.valor)]),
     styles: { fontSize: 7, cellPadding: 1.4, lineColor: [180, 180, 180] },
     headStyles: { fillColor: [235, 235, 235], textColor: 0, fontStyle: 'bold' },
     theme: 'grid'
@@ -139,7 +134,7 @@ function gerarOrdemFornecimento(tipo, r) {
 
   // Observações
   secao('OBSERVAÇÕES');
-  campo(M, contentW, 'COND. PAGAMENTO', r.forma_pagamento || ''); y += rowH;
+  campo(M, contentW, 'COND. PAGAMENTO', cond.resumo); y += rowH;
   campo(M, contentW, 'E-MAIL NF-E / XML', ''); y += rowH + 6;
 
   if (y > 240) { doc.addPage(); y = M; }

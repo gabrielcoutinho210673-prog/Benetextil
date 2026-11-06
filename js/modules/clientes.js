@@ -159,7 +159,7 @@ function formCliente(c={}) {
     <div class="col-md-5"><label class="form-label">Nome *</label><input class="form-control" id="cNome" value="${v('nome')}"></div>
     <div class="col-md-3"><label class="form-label">CPF / CNPJ</label><input class="form-control" id="cCpfCnpj" placeholder="000.000.000-00" value="${v('cpf_cnpj')}"></div>
     <div class="col-md-2"><label class="form-label">Telefone</label><input class="form-control" id="cTel" value="${v('telefone')}"></div>
-    <div class="col-md-2"><label class="form-label">Data do Pedido *</label><input type="date" class="form-control" id="cDataPedido" value="${v('data_pedido')}" onchange="document.getElementById('cDataEntrega').min=this.value"></div>
+    <div class="col-md-2"><label class="form-label">Data do Pedido *</label><input type="date" class="form-control" id="cDataPedido" value="${v('data_pedido')}" onchange="document.getElementById('cDataEntrega').min=this.value;previewCondPag()"></div>
     <div class="col-12"><label class="form-label">Endereço</label><input class="form-control" id="cEnd" value="${v('endereco')}"></div>
 
     ${secTitle('tshirt','DESCRIÇÃO DO SERVIÇO')}
@@ -217,13 +217,24 @@ function formCliente(c={}) {
     </div>
 
     ${secTitle('dollar-sign','PRAZO E VALORES')}
-    <div class="col-md-3"><label class="form-label">Data de Entrega *</label><input type="date" class="form-control" id="cDataEntrega" value="${v('data_entrega')}" min="${v('data_pedido')}"></div>
-    <div class="col-md-3"><label class="form-label">Valor Total (R$)</label><input type="number" class="form-control" id="cValorTotal" step="0.01" value="${v('valor_total')}" oninput="calcResumo()"></div>
-    <div class="col-md-3"><label class="form-label">Entrada (R$)</label><input type="number" class="form-control" id="cEntrada" step="0.01" value="${v('entrada')}"></div>
+    <div class="col-md-3"><label class="form-label">Data de Entrega *</label><input type="date" class="form-control" id="cDataEntrega" value="${v('data_entrega')}" min="${v('data_pedido')}" onchange="previewCondPag()"></div>
+    <div class="col-md-3"><label class="form-label">Valor Total (R$)</label><input type="number" class="form-control" id="cValorTotal" step="0.01" value="${v('valor_total')}" oninput="calcResumo();previewCondPag()"></div>
+    <div class="col-md-3"><label class="form-label">Entrada (R$)</label><input type="number" class="form-control" id="cEntrada" step="0.01" min="0" value="${v('entrada')}" oninput="previewCondPag()"></div>
     <div class="col-md-3"><label class="form-label">Forma de Pagamento</label>
-      <select class="form-select" id="cFormaPag">
-        ${['','Dinheiro','PIX','Cartão Crédito','Cartão Débito','Cheque','Fiado'].map(o=>`<option${v('forma_pagamento')===o?' selected':''}>${o}</option>`).join('')}
+      <select class="form-select" id="cFormaPag" onchange="previewCondPag()">
+        ${['','Dinheiro','PIX','Cartão Crédito','Cartão Débito','Cheque','Fiado','Boleto'].map(o=>`<option${v('forma_pagamento')===o?' selected':''}>${o}</option>`).join('')}
       </select></div>
+    <div class="col-md-3"><label class="form-label">Data da Entrada</label><input type="date" class="form-control" id="cEntradaData" value="${v('entrada_data')}" onchange="previewCondPag()">
+      <small class="text-muted">vazio = data do pedido</small></div>
+    <div class="col-md-3"><label class="form-label">Saldo restante em</label>
+      <select class="form-select" id="cParcelasQtd" onchange="previewCondPag()">
+        ${Array.from({length:12},(_,i)=>i+1).map(n=>`<option value="${n}"${(parseInt(c.parcelas_qtd)||1)===n?' selected':''}>${n===1?'1x (parcela única)':n+'x'}</option>`).join('')}
+      </select></div>
+    <div class="col-md-3"><label class="form-label">1º Vencimento do Saldo</label><input type="date" class="form-control" id="cParcelasPrimeiro" value="${v('parcelas_primeiro_venc')}" onchange="previewCondPag()">
+      <small class="text-muted">vazio = data de entrega</small></div>
+    <div class="col-md-3"><label class="form-label">Intervalo entre parcelas</label>
+      <div class="input-group"><input type="number" class="form-control" id="cParcelasIntervalo" min="1" step="1" value="${escHtml(c.parcelas_intervalo||30)}" oninput="previewCondPag()"><span class="input-group-text">dias</span></div></div>
+    <div class="col-12" id="cPreviewCondPag"></div>
 
     ${secTitle('receipt','CUSTOS OPERACIONAIS')}
     <div class="col-md-3"><label class="form-label">Uber (R$)</label><div class="input-group"><span class="input-group-text">R$</span><input type="number" class="form-control" id="cUber" step="0.01" min="0" value="${v('uber')}" oninput="calcResumo()"></div></div>
@@ -391,7 +402,40 @@ function formCliente(c={}) {
   const selTipos = document.getElementById('cQtdTipos');
   if (selTipos) { selTipos.value = qtdPecas; renderLinhasPeca(); }
 
-  setTimeout(calcResumo, 150);
+  setTimeout(() => { calcResumo(); previewCondPag(); }, 150);
+}
+
+function lerCondPagForm() {
+  const val = id => document.getElementById(id)?.value || '';
+  return {
+    valor_total:            parseFloat(val('cValorTotal')) || 0,
+    entrada:                parseFloat(val('cEntrada')) || 0,
+    forma_pagamento:        val('cFormaPag'),
+    data_pedido:            val('cDataPedido'),
+    data_entrega:           val('cDataEntrega'),
+    entrada_data:           val('cEntradaData') || null,
+    parcelas_qtd:           parseInt(val('cParcelasQtd')) || 1,
+    parcelas_primeiro_venc: val('cParcelasPrimeiro') || null,
+    parcelas_intervalo:     parseInt(val('cParcelasIntervalo')) || 30
+  };
+}
+
+function previewCondPag() {
+  const el = document.getElementById('cPreviewCondPag');
+  if (!el) return;
+  const f = lerCondPagForm();
+  if (f.valor_total <= 0) { el.innerHTML = ''; return; }
+  if (f.entrada > f.valor_total) {
+    el.innerHTML = `<div class="alert alert-danger py-2 mb-0"><i class="fas fa-exclamation-triangle me-1"></i>A entrada é maior que o valor total.</div>`;
+    return;
+  }
+  const { linhas, resumo } = condicoesPagamento(f);
+  el.innerHTML = `<div style="background:#f0fdf4;border:1px solid #059669;border-radius:8px;padding:10px 14px">
+    <div class="fw-semibold mb-2" style="color:#059669"><i class="fas fa-file-invoice-dollar me-1"></i>Condições de pagamento que vão no PDF: <span class="fw-normal text-dark">${escHtml(resumo)}</span></div>
+    <table class="table table-sm table-bordered mb-0 bg-white" style="font-size:0.85rem;max-width:520px">
+      <thead class="table-light"><tr><th>Parcela</th><th>Vencimento</th><th class="text-end">Valor</th></tr></thead>
+      <tbody>${linhas.map(p => `<tr><td>${escHtml(p.label)}</td><td>${p.venc ? fmtDate(p.venc) : '—'}</td><td class="text-end">${fmtMoney(p.valor)}</td></tr>`).join('')}</tbody>
+    </table></div>`;
 }
 
 function updateDinamico(prefixo, selectId, containerId, labelBase, max) {
@@ -668,6 +712,8 @@ async function salvarCliente(id, outro) {
   if (!dPed) { toast('Informe a Data do Pedido','danger'); return; }
   if (!dEnt) { toast('Informe a Data de Entrega','danger'); return; }
   if (dEnt < dPed) { toast('A Data de Entrega não pode ser anterior à Data do Pedido','danger'); return; }
+  const condPag = lerCondPagForm();
+  if (condPag.entrada > condPag.valor_total) { toast('A Entrada não pode ser maior que o Valor Total','danger'); return; }
   salvandoCliente = true;
 
   const silkQtd    = parseInt(document.getElementById('silkQtd')?.value)||0;
@@ -759,6 +805,10 @@ async function salvarCliente(id, outro) {
     valor_total:    parseFloat(document.getElementById('cValorTotal').value)||0,
     entrada:        parseFloat(document.getElementById('cEntrada').value)||0,
     forma_pagamento:document.getElementById('cFormaPag').value,
+    entrada_data:           condPag.entrada_data,
+    parcelas_qtd:           condPag.parcelas_qtd,
+    parcelas_primeiro_venc: condPag.parcelas_primeiro_venc,
+    parcelas_intervalo:     condPag.parcelas_intervalo,
     obs_corte:      document.getElementById('cObsCorte')?.value||'',
     corte_qtd:      parseFloat(document.getElementById('corteClaudiaQtd')?.value)||0,
     corte_valor:    parseFloat(document.getElementById('corteClaudiaVal')?.value)||0,
