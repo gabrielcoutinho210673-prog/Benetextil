@@ -1,4 +1,6 @@
 'use strict';
+// Máximo de peças num pedido de Uniforme — cada peça tem colunas pecaN_* na tabela clientes
+const MAX_PECAS = 10;
 const mesesComAno = (datas) => {
   const set = new Set();
   const ano = new Date().getFullYear();

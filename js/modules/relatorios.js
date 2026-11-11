@@ -49,7 +49,7 @@ function normalizarCategoriaPeca(texto) {
 // as peças 2 a 5 (mesmo padrão usado no PDF da Ordem de Fornecimento).
 function pecasDoPedido(p) {
   const pecas = [];
-  for (let i = 1; i <= 5; i++) {
+  for (let i = 1; i <= MAX_PECAS; i++) {
     const tipo = i === 1 ? p.tipo_peca : p[`peca${i}_tipo`];
     const qtd  = parseFloat(i === 1 ? p.quantidade : p[`peca${i}_qtd`]) || 0;
     if (!tipo && qtd <= 0) continue;

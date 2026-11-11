@@ -161,7 +161,7 @@ function gerarOrdemFornecimento(tipo, r) {
 function _ofItensUniforme(r) {
   const valorTotal = parseFloat(r.valor_total) || 0;
   const brutos = [];
-  for (let i = 1; i <= 5; i++) {
+  for (let i = 1; i <= MAX_PECAS; i++) {
     const tipoPeca = i === 1 ? r.tipo_peca : r[`peca${i}_tipo`];
     const qtd = parseFloat(i === 1 ? r.quantidade : r[`peca${i}_qtd`]) || 0;
     if (!tipoPeca && qtd <= 0) continue;

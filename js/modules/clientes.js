@@ -25,9 +25,9 @@ const AVIAMENTOS_LIST = [
 function gastoDoPedido(p) {
   const n = k => parseFloat(p[k]) || 0;
   let total = n('tecido_valor');
-  for (let i = 2; i <= 5; i++) total += n(`peca${i}_tecido_valor`);
+  for (let i = 2; i <= MAX_PECAS; i++) total += n(`peca${i}_tecido_valor`);
   for (let i = 1; i <= 5; i++) total += n(`costura_qtd_${i}`) * n(`costura_val_${i}`);
-  for (let i = 1; i <= 5; i++) {
+  for (let i = 1; i <= MAX_PECAS; i++) {
     try {
       Object.values(JSON.parse(p[`peca${i}_aviamentos`] || '{}')).forEach(a => { total += a.total || (a.qtd * a.val) || 0; });
     } catch(e) {}
@@ -130,7 +130,8 @@ async function renderClientes(search) {
 
 function formCliente(c={}) {
   const v = (f) => escHtml(c[f]||'');
-  const aviaData = [null].concat([1,2,3,4,5].map(i => {
+  const numPecas = Array.from({length: MAX_PECAS}, (_, k) => k + 1);
+  const aviaData = [null].concat(numPecas.map(i => {
     const col = i === 1 ? 'peca1_aviamentos' : `peca${i}_aviamentos`;
     try { return JSON.parse(c[col] || '{}'); } catch(e) { return {}; }
   }));
@@ -165,7 +166,7 @@ function formCliente(c={}) {
     ${secTitle('tshirt','DESCRIÇÃO DO SERVIÇO')}
     <input type="hidden" id="cQtdTipos" value="1">
     <div class="col-12" id="cLinhasPeca">
-      ${[1,2,3,4,5].map(i=>`
+      ${numPecas.map(i=>`
       <div class="peca-linha" id="pecaLinha${i}" style="${i>1?'display:none':''}">
         <div class="d-flex align-items-center gap-2 my-2" style="border-bottom:2px solid #4361ee;padding-bottom:4px">
           <i class="fas fa-tshirt text-primary"></i><strong class="text-primary">PEÇA ${i}</strong>
@@ -213,7 +214,7 @@ function formCliente(c={}) {
     </div>
     <div class="col-12">
       <button type="button" class="btn btn-outline-primary btn-sm" id="btnAddPeca" onclick="adicionarPeca()"><i class="fas fa-plus me-1"></i>Adicionar peça</button>
-      <small class="text-muted ms-2">Até 5 peças no mesmo pedido (ex: camisa + calça)</small>
+      <small class="text-muted ms-2">Até ${MAX_PECAS} peças no mesmo pedido (ex: camiseta cinza, camiseta preta, calça...)</small>
     </div>
 
     ${secTitle('dollar-sign','PRAZO E VALORES')}
@@ -398,7 +399,8 @@ function formCliente(c={}) {
     }
     calcTotalCostura();
   }
-  const qtdPecas = [2,3,4,5].filter(i => c[`peca${i}_tipo`]).length + 1;
+  let qtdPecas = 1;
+  for (let i = 2; i <= MAX_PECAS; i++) if (c[`peca${i}_tipo`] || parseFloat(c[`peca${i}_qtd`]) > 0) qtdPecas = i;
   const selTipos = document.getElementById('cQtdTipos');
   if (selTipos) { selTipos.value = qtdPecas; renderLinhasPeca(); }
 
@@ -572,18 +574,18 @@ function calcTotalCostura() {
 
 function renderLinhasPeca() {
   const n = parseInt(document.getElementById('cQtdTipos')?.value)||1;
-  for (let i = 1; i <= 5; i++) {
+  for (let i = 1; i <= MAX_PECAS; i++) {
     const el = document.getElementById('pecaLinha'+i);
     if (el) el.style.display = i <= n ? '' : 'none';
   }
   const btn = document.getElementById('btnAddPeca');
-  if (btn) btn.style.display = n >= 5 ? 'none' : '';
+  if (btn) btn.style.display = n >= MAX_PECAS ? 'none' : '';
 }
 
 function adicionarPeca() {
   const el = document.getElementById('cQtdTipos');
   const n = parseInt(el.value)||1;
-  if (n >= 5) return;
+  if (n >= MAX_PECAS) return;
   el.value = n + 1;
   renderLinhasPeca();
   document.getElementById('pecaLinha'+(n+1))?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -641,7 +643,7 @@ function calcResumo() {
   let custoTotal = 0;
   let extrasDistribuidos = 0;
   let costuraDistribuida = 0;
-  for (let i = 1; i <= 5; i++) {
+  for (let i = 1; i <= MAX_PECAS; i++) {
     const ativo = i <= nPecas;
     const tec = parseFloat(document.getElementById(`cTecidoValor${i}`)?.value)||0;
     const qtdPeca = parseFloat(document.getElementById(`cQtd${i}`)?.value)||0;
@@ -751,45 +753,25 @@ async function salvarCliente(id, outro) {
     tecido_valor:   parseFloat(document.getElementById('cTecidoValor1').value)||0,
     venda_valor:    parseFloat(document.getElementById('cVendaValor1').value)||0,
     obs_servico:    document.getElementById('cObsServico1').value,
-    peca2_tipo:     document.getElementById('cTipoPeca2').value,
-    peca2_qtd:      document.getElementById('cQtd2').value,
-    peca2_tamanhos: document.getElementById('cTamanhos2').value,
-    peca2_cores:    document.getElementById('cCores2').value,
-    peca2_tecido:        document.getElementById('cTecido2').value,
-    peca2_tecido_qtd:    parseFloat(document.getElementById('cTecidoQtd2')?.value)||0,
-    peca2_tecido_valor:  parseFloat(document.getElementById('cTecidoValor2').value)||0,
-    peca2_venda_valor:    parseFloat(document.getElementById('cVendaValor2').value)||0,
-    peca2_obs:            document.getElementById('cObsServico2').value,
-    peca3_tipo:     document.getElementById('cTipoPeca3').value,
-    peca3_qtd:      document.getElementById('cQtd3').value,
-    peca3_tamanhos: document.getElementById('cTamanhos3').value,
-    peca3_cores:    document.getElementById('cCores3').value,
-    peca3_tecido:        document.getElementById('cTecido3').value,
-    peca3_tecido_qtd:    parseFloat(document.getElementById('cTecidoQtd3')?.value)||0,
-    peca3_tecido_valor:  parseFloat(document.getElementById('cTecidoValor3').value)||0,
-    peca3_venda_valor:    parseFloat(document.getElementById('cVendaValor3').value)||0,
-    peca3_obs:            document.getElementById('cObsServico3').value,
-    peca4_tipo:     document.getElementById('cTipoPeca4').value,
-    peca4_qtd:      document.getElementById('cQtd4').value,
-    peca4_tamanhos: document.getElementById('cTamanhos4').value,
-    peca4_cores:    document.getElementById('cCores4').value,
-    peca4_tecido:        document.getElementById('cTecido4').value,
-    peca4_tecido_qtd:    parseFloat(document.getElementById('cTecidoQtd4')?.value)||0,
-    peca4_tecido_valor:  parseFloat(document.getElementById('cTecidoValor4').value)||0,
-    peca4_venda_valor:    parseFloat(document.getElementById('cVendaValor4').value)||0,
-    peca4_obs:            document.getElementById('cObsServico4').value,
-    peca5_tipo:     document.getElementById('cTipoPeca5').value,
-    peca5_qtd:      document.getElementById('cQtd5').value,
-    peca5_tamanhos: document.getElementById('cTamanhos5').value,
-    peca5_cores:    document.getElementById('cCores5').value,
-    peca5_tecido:        document.getElementById('cTecido5').value,
-    peca5_tecido_qtd:    parseFloat(document.getElementById('cTecidoQtd5')?.value)||0,
-    peca5_tecido_valor:  parseFloat(document.getElementById('cTecidoValor5').value)||0,
-    peca5_venda_valor:    parseFloat(document.getElementById('cVendaValor5').value)||0,
-    peca5_obs:            document.getElementById('cObsServico5').value,
+    ...(()=>{
+      const pecas = {};
+      const el = id => document.getElementById(id);
+      for (let i = 2; i <= MAX_PECAS; i++) {
+        pecas[`peca${i}_tipo`]        = el(`cTipoPeca${i}`).value;
+        pecas[`peca${i}_qtd`]         = el(`cQtd${i}`).value;
+        pecas[`peca${i}_tamanhos`]    = el(`cTamanhos${i}`).value;
+        pecas[`peca${i}_cores`]       = el(`cCores${i}`).value;
+        pecas[`peca${i}_tecido`]      = el(`cTecido${i}`).value;
+        pecas[`peca${i}_tecido_qtd`]  = parseFloat(el(`cTecidoQtd${i}`)?.value)||0;
+        pecas[`peca${i}_tecido_valor`]= parseFloat(el(`cTecidoValor${i}`).value)||0;
+        pecas[`peca${i}_venda_valor`] = parseFloat(el(`cVendaValor${i}`).value)||0;
+        pecas[`peca${i}_obs`]         = el(`cObsServico${i}`).value;
+      }
+      return pecas;
+    })(),
     ...(()=>{
       const avias = {};
-      for(let i=1;i<=5;i++){
+      for(let i=1;i<=MAX_PECAS;i++){
         const obj = {};
         AVIAMENTOS_LIST.forEach(a=>{
           const qtd = parseFloat(document.getElementById(`p${i}_avia_${a.key}_qtd`)?.value)||0;
@@ -873,7 +855,7 @@ async function salvarCliente(id, outro) {
     // Tecido de cada peça (1 a 5) vira uma Compra da Empresa em vez de uma linha
     // avulsa em Contas a Pagar — antes só a Peça 1 gerava esse custo, o tecido das
     // demais peças nunca era registrado como despesa real.
-    for (let pi = 1; pi <= 5; pi++) {
+    for (let pi = 1; pi <= MAX_PECAS; pi++) {
       const tecidoVal = pi === 1 ? data.tecido_valor : (parseFloat(data[`peca${pi}_tecido_valor`])||0);
       if (tecidoVal > 0) custos.push({ label: pi===1?'Tecido':`Tecido Peça ${pi}`, val: tecidoVal, compra: true });
     }
@@ -888,7 +870,7 @@ async function salvarCliente(id, outro) {
     }
 
     let totalAviamentos = 0;
-    for (let pi = 1; pi <= 5; pi++) {
+    for (let pi = 1; pi <= MAX_PECAS; pi++) {
       try {
         const avObj = JSON.parse(data[`peca${pi}_aviamentos`] || '{}');
         Object.values(avObj).forEach(vv => { totalAviamentos += (vv.total || (vv.qtd * vv.val) || 0); });
