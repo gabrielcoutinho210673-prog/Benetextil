@@ -33,6 +33,8 @@ async function renderDashboard() {
       window._contasVencendo  = contasPagar.filter(c => { if(c.status!=='pendente'||!c.vencimento) return false; const d=new Date(c.vencimento+'T00:00:00'); return d>=hojeDate && d<=em3dias; });
     }
 
+    const pedidosSemCusto = (await getAll('clientes')).filter(p => (parseFloat(p.valor_total)||0) > 0 && gastoDoPedido(p) === 0);
+
     document.getElementById('pageContent').innerHTML = `
     <div class="row g-3 mb-4">
       <div class="col-sm-6 col-xl-3">
@@ -78,6 +80,11 @@ async function renderDashboard() {
       const atraso   = window._alertasAtraso   || [];
       const proximos = window._alertasProximos || [];
       let alertHtml = '';
+      if (pedidosSemCusto.length) alertHtml += `
+        <div class="alert alert-warning d-flex align-items-start gap-3 mb-3" style="border-left:5px solid #d97706;cursor:pointer" onclick="clienteMes='';clienteFiltro='semcusto';nav('clientes')">
+          <i class="fas fa-calculator fa-lg mt-1 text-warning"></i>
+          <div><strong>🧾 ${pedidosSemCusto.length} pedido(s) de Uniforme sem nenhum custo lançado — o lucro deles está aparecendo igual ao valor de venda.</strong>
+            <div class="small mt-1">Clique aqui para ver a lista e preencher os custos.</div></div></div>`;
       if (atraso.length) alertHtml += `
         <div class="alert alert-danger d-flex align-items-start gap-3 mb-3" style="border-left:5px solid #dc2626">
           <i class="fas fa-exclamation-triangle fa-lg mt-1 text-danger"></i>

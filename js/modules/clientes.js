@@ -378,6 +378,10 @@ function formCliente(c={}) {
             <div class="small text-muted">Valor do Pedido − Custo Total</div>
           </div>
         </div>
+        <div class="col-12" id="resumoSemCusto" style="display:none">
+          <div class="alert alert-warning py-2 mb-0"><i class="fas fa-exclamation-triangle me-1"></i>
+            <strong>Nenhum custo preenchido.</strong> Preencha tecido, costura, aviamentos, corte etc. — sem isso o lucro do pedido fica igual ao valor de venda.</div>
+        </div>
       </div>
     </div>
 
@@ -717,6 +721,8 @@ function calcResumo() {
     elL.textContent = fmtMoney(lucro);
     elL.style.color = lucro >= 0 ? '#059669' : '#dc2626';
   }
+  const elSem = document.getElementById('resumoSemCusto');
+  if (elSem) elSem.style.display = (valorTotal > 0 && custoTotal === 0 && costura === 0 && extrasGlobais === 0) ? '' : 'none';
 }
 
 async function salvarCliente(id, outro) {
@@ -825,6 +831,17 @@ async function salvarCliente(id, outro) {
     ...dinamicos,
     ativo: 1
   };
+
+  if (data.valor_total > 0 && gastoDoPedido(data) === 0 && !confirm(
+    `⚠️ Este pedido está SEM NENHUM CUSTO lançado (tecido, costura, aviamentos, corte...).
+
+` +
+    `Sem os custos, o Gasto fica R$ 0,00 e o Lucro aparece igual ao valor do pedido (${fmtMoney(data.valor_total)}).
+
+` +
+    `CANCELAR = voltar e preencher os custos
+OK = salvar assim mesmo (ex.: orçamento ainda sem custos)`
+  )) { salvandoCliente = false; return; }
 
   try {
     let pedidoId = id;
