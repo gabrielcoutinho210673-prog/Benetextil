@@ -3,6 +3,8 @@ let clienteSearch = '';
 let clienteFiltro = 'todos';
 let clienteMes    = '';
 let salvandoCliente = false;
+// true quando o Valor Total foi digitado à mão (ex.: desconto) e não deve ser sobrescrito pela soma das peças
+let valorTotalManual = false;
 
 const AVIAMENTOS_LIST = [
   {key:'botao',           label:'BOTÃO'},
@@ -142,7 +144,20 @@ async function renderClientes(search) {
   } catch(e) { toast(e.message,'danger'); }
 }
 
+function somaPecasRegistro(c) {
+  let soma = 0;
+  for (let i = 1; i <= MAX_PECAS; i++) {
+    const qtd   = parseFloat(i === 1 ? c.quantidade  : c[`peca${i}_qtd`]) || 0;
+    const preco = parseFloat(i === 1 ? c.venda_valor : c[`peca${i}_venda_valor`]) || 0;
+    soma += qtd * preco;
+  }
+  return Math.round(soma * 100) / 100;
+}
+
 function formCliente(c={}) {
+  // pedido antigo com total diferente da soma das peças (desconto, ou peças sem preço) mantém o valor salvo
+  const totalSalvo = parseFloat(c.valor_total) || 0;
+  valorTotalManual = totalSalvo > 0 && Math.abs(totalSalvo - somaPecasRegistro(c)) > 0.005;
   const v = (f) => escHtml(c[f]||'');
   const numPecas = Array.from({length: MAX_PECAS}, (_, k) => k + 1);
   const aviaData = [null].concat(numPecas.map(i => {
@@ -188,7 +203,7 @@ function formCliente(c={}) {
         </div>
         <div class="row g-2 mb-2">
           <div class="col-md-4"><label class="form-label">Tipo de Peça</label><input class="form-control" id="cTipoPeca${i}" value="${v(i===1?'tipo_peca':`peca${i}_tipo`)}"></div>
-          <div class="col-md-2"><label class="form-label">Quantidade</label><input type="number" class="form-control" id="cQtd${i}" min="0" value="${v(i===1?'quantidade':`peca${i}_qtd`)}"></div>
+          <div class="col-md-2"><label class="form-label">Quantidade</label><input type="number" class="form-control" id="cQtd${i}" min="0" value="${v(i===1?'quantidade':`peca${i}_qtd`)}" oninput="calcResumo()"></div>
           <div class="col-md-3"><label class="form-label">Tamanho(s)</label><input class="form-control" id="cTamanhos${i}" placeholder="P, M, G, GG" value="${v(i===1?'tamanhos':`peca${i}_tamanhos`)}"></div>
           <div class="col-md-3"><label class="form-label">Cor(s)</label><input class="form-control" id="cCores${i}" value="${v(i===1?'cores':`peca${i}_cores`)}"></div>
           <div class="col-md-3"><label class="form-label">Tecido</label><input class="form-control" id="cTecido${i}" value="${v(i===1?'tecido':`peca${i}_tecido`)}"></div>
@@ -233,7 +248,8 @@ function formCliente(c={}) {
 
     ${secTitle('dollar-sign','PRAZO E VALORES')}
     <div class="col-md-3"><label class="form-label">Data de Entrega *</label><input type="date" class="form-control" id="cDataEntrega" value="${v('data_entrega')}" min="${v('data_pedido')}" onchange="previewCondPag()"></div>
-    <div class="col-md-3"><label class="form-label">Valor Total (R$)</label><input type="number" class="form-control" id="cValorTotal" step="0.01" value="${v('valor_total')}" oninput="calcResumo();previewCondPag()"></div>
+    <div class="col-md-3"><label class="form-label">Valor Total (R$)</label><input type="number" class="form-control" id="cValorTotal" step="0.01" value="${v('valor_total')}" oninput="valorTotalManual=this.value!=='';calcResumo();previewCondPag()">
+      <small class="text-muted" id="cValorTotalInfo"></small></div>
     <div class="col-md-3"><label class="form-label">Entrada (R$)</label><input type="number" class="form-control" id="cEntrada" step="0.01" min="0" value="${v('entrada')}" oninput="previewCondPag()"></div>
     <div class="col-md-3"><label class="form-label">Forma de Pagamento</label>
       <select class="form-select" id="cFormaPag" onchange="previewCondPag()">
@@ -620,7 +636,29 @@ function removerPeca(i) {
   calcResumo();
 }
 
+function atualizarTotalAuto() {
+  const el = document.getElementById('cValorTotal');
+  if (!el) return;
+  const nPecas = parseInt(document.getElementById('cQtdTipos')?.value) || 1;
+  let soma = 0;
+  for (let i = 1; i <= nPecas; i++) {
+    soma += (parseFloat(document.getElementById(`cQtd${i}`)?.value) || 0) * (parseFloat(document.getElementById(`cVendaValor${i}`)?.value) || 0);
+  }
+  soma = Math.round(soma * 100) / 100;
+  if (!valorTotalManual && soma > 0 && el.value !== soma.toFixed(2)) {
+    el.value = soma.toFixed(2);
+    previewCondPag();
+  }
+  const info = document.getElementById('cValorTotalInfo');
+  if (!info) return;
+  const atual = parseFloat(el.value) || 0;
+  if (soma <= 0) info.innerHTML = 'Preencha Qtd e Valor de Venda/Un das peças para somar sozinho';
+  else if (Math.abs(atual - soma) <= 0.005) info.innerHTML = '<i class="fas fa-check text-success"></i> Soma automática das peças';
+  else info.innerHTML = `Digitado à mão · soma das peças: <strong>${fmtMoney(soma)}</strong> · <a href="#" onclick="valorTotalManual=false;calcResumo();return false">usar a soma</a>`;
+}
+
 function calcResumo() {
+  atualizarTotalAuto();
   const nPecas    = parseInt(document.getElementById('cQtdTipos')?.value)||1;
   const valorTotal = parseFloat(document.getElementById('cValorTotal')?.value)||0;
   let qtdTotal = 0;
