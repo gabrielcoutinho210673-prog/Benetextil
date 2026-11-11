@@ -60,10 +60,15 @@ async function renderClientes(search) {
     const somaGasto = base.reduce((s,c)=>s+gastoDoPedido(c),0);
     const somaVenda = base.reduce((s,c)=>s+(parseFloat(c.valor_total)||0),0);
     const somaLucro = somaVenda - somaGasto;
+    // pedido com valor mas sem nenhum custo lançado deixa o Lucro igual ao faturamento
+    const semCusto = c => (parseFloat(c.valor_total)||0) > 0 && gastoDoPedido(c) === 0;
+    const qtdSemCusto = base.filter(semCusto).length;
+    if (clienteFiltro === 'semcusto' && !qtdSemCusto) clienteFiltro = 'todos';
 
     let dados = base;
-    if (clienteFiltro === 'atraso') dados = dados.filter(isAtraso);
-    if (clienteFiltro === 'prazo')  dados = dados.filter(c => !isAtraso(c));
+    if (clienteFiltro === 'atraso')   dados = dados.filter(isAtraso);
+    if (clienteFiltro === 'prazo')    dados = dados.filter(c => !isAtraso(c));
+    if (clienteFiltro === 'semcusto') dados = dados.filter(semCusto);
 
     document.getElementById('pageContent').innerHTML = `
     <div class="row g-2 mb-3">
@@ -73,10 +78,15 @@ async function renderClientes(search) {
       <div class="col-6"><div class="p-2 rounded text-center" style="background:#fee2e2;border:1px solid #dc2626"><div class="small text-muted">Gasto</div><strong class="text-danger">${fmtMoney(somaGasto)}</strong></div></div>
       <div class="col-6"><div class="p-2 rounded text-center" style="background:${somaLucro>=0?'#d1fae5':'#fee2e2'};border:1px solid ${somaLucro>=0?'#10b981':'#dc2626'}"><div class="small text-muted">Lucro</div><strong class="${somaLucro>=0?'text-success':'text-danger'}">${fmtMoney(somaLucro)}</strong></div></div>
     </div>
+    ${qtdSemCusto ? `<div class="alert alert-warning d-flex align-items-center gap-2 flex-wrap py-2">
+      <i class="fas fa-exclamation-triangle"></i>
+      <div class="flex-grow-1"><strong>${qtdSemCusto} pedido(s)${clienteMes?' deste mês':''} sem nenhum custo lançado</strong> (tecido, costura, aviamentos, corte...). Nesses pedidos o gasto conta como R$ 0,00, então o Lucro acima está maior do que o real. Abra o pedido no ✏️ e preencha os custos.</div>
+      ${clienteFiltro==='semcusto'?'':`<button class="btn btn-sm btn-warning" onclick="clienteFiltro='semcusto';renderClientes()">Ver esses pedidos</button>`}
+    </div>` : ''}
     <div class="card">
       <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
         <div class="d-flex gap-1 flex-wrap">
-          ${['todos','atraso','prazo'].map(f=>`<button class="btn btn-sm ${clienteFiltro===f?'btn-primary':'btn-outline-secondary'}" onclick="clienteFiltro='${f}';renderClientes()">${f==='todos'?'Todos':f==='atraso'?'Em Atraso':'No Prazo'}</button>`).join('')}
+          ${['todos','atraso','prazo',...(qtdSemCusto?['semcusto']:[])].map(f=>`<button class="btn btn-sm ${clienteFiltro===f?(f==='semcusto'?'btn-warning':'btn-primary'):(f==='semcusto'?'btn-outline-warning':'btn-outline-secondary')}" onclick="clienteFiltro='${f}';renderClientes()">${f==='todos'?'Todos':f==='atraso'?'Em Atraso':f==='prazo'?'No Prazo':`Sem Custo (${qtdSemCusto})`}</button>`).join('')}
         </div>
         <div class="d-flex gap-2 flex-wrap">
           <select class="form-select form-select-sm" style="width:180px" onchange="clienteMes=this.value;renderClientes()">
@@ -96,7 +106,7 @@ async function renderClientes(search) {
           <table class="table mb-0">
             <thead><tr>
               <th class="ps-3">Cliente</th><th>Telefone</th><th>Tipo de Peça</th><th>Qtd</th>
-              <th>Data Pedido</th><th>Entrega</th><th>Valor Total</th><th>Status Pgto</th>
+              <th>Data Pedido</th><th>Entrega</th><th>Valor Total</th><th>Gasto</th><th>Lucro</th><th>Status Pgto</th>
               <th class="text-end pe-3">Ações</th>
             </tr></thead>
             <tbody>
@@ -104,6 +114,8 @@ async function renderClientes(search) {
               const saldo = (parseFloat(c.valor_total)||0) - (parseFloat(c.entrada)||0);
               const statusPgto = saldo <= 0 ? '<span class="badge bg-success">Pago</span>' : (parseFloat(c.entrada)>0 ? '<span class="badge bg-warning text-dark">Parcial</span>' : '<span class="badge bg-danger">Pendente</span>');
               const atrasado = isAtraso(c);
+              const gasto = gastoDoPedido(c);
+              const lucro = (parseFloat(c.valor_total)||0) - gasto;
               return `<tr class="${atrasado?'table-danger':''}">
                 <td class="ps-3"><strong>${escHtml(c.nome)}</strong><br><small class="text-muted">${escHtml(c.endereco||'')}</small></td>
                 <td>${escHtml(c.telefone||'—')}</td>
@@ -112,6 +124,8 @@ async function renderClientes(search) {
                 <td><small>${c.data_pedido?fmtDate(c.data_pedido):'—'}</small></td>
                 <td><small class="${atrasado?'text-danger fw-bold':''}">${c.data_entrega?fmtDate(c.data_entrega):'—'}${atrasado?' ⚠️ Atrasado':c.entregue?' <span class="badge bg-info text-dark">Entregue</span>':''}</small></td>
                 <td class="fw-semibold">${c.valor_total?fmtMoney(c.valor_total):'—'}</td>
+                <td>${semCusto(c)?'<span class="badge bg-warning text-dark" title="Nenhum custo lançado neste pedido">sem custo</span>':`<span class="text-danger">${fmtMoney(gasto)}</span>`}</td>
+                <td class="fw-semibold ${lucro>=0?'text-success':'text-danger'}">${c.valor_total?fmtMoney(lucro):'—'}</td>
                 <td>${statusPgto}</td>
                 <td class="text-end pe-3">
                   ${!c.entregue?`<button class="btn btn-icon btn-outline-info btn-sm" title="Marcar como Entregue" onclick="marcarEntregue(${c.id})"><i class="fas fa-truck"></i></button>`:''}

@@ -85,12 +85,10 @@ async function renderRelatorios(tab) {
 async function renderRelUniforme() {
   const el = document.getElementById('relConteudo');
   try {
-    const [dados, contasPagar] = await Promise.all([getAll('clientes'), getAll('contas_pagar')]);
+    const dados = await getAll('clientes');
     const hoje  = new Date(); hoje.setHours(0,0,0,0);
-    const custoPedido = p => {
-      const desc = `${p.tipo_peca||'Uniforme'} — ${p.nome}`;
-      return contasPagar.filter(c => (c.descricao||'').includes(`— ${desc}`)).reduce((s,c)=>s+(parseFloat(c.valor)||0),0);
-    };
+    // mesmo cálculo dos cards da tela de Uniforme, pra os dois baterem
+    const custoPedido = gastoDoPedido;
     const total = dados.reduce((s,p)=>s+(parseFloat(p.valor_total)||0),0);
     const custo = dados.reduce((s,p)=>s+custoPedido(p),0);
     const lucro = total - custo;
@@ -154,7 +152,7 @@ async function renderRelUniforme() {
             const c = custoPedido(p);
             const l = (parseFloat(p.valor_total)||0)-c;
             const ent = p.data_entrega?new Date(p.data_entrega+'T00:00:00'):null;
-            const atrasado = ent && ent < hoje;
+            const atrasado = ent && ent < hoje && !p.entregue;
             return `<tr class="${atrasado?'table-danger':''}">
               <td class="ps-3 fw-semibold">${escHtml(p.nome||'—')}</td>
               <td><small>${escHtml(p.tipo_peca||'—')}</small></td>
