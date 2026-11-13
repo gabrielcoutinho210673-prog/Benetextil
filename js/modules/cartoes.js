@@ -5,13 +5,29 @@ let cartaoAtualId = null;     // qual cartão está com a fatura aberta na tela 
 let faturaSelecionada = null; // 'YYYY-MM' escolhida no detalhe
 
 // ── Lógica de fatura ──────────────────────────────────────────────
-// Lançamento no dia do fechamento (ou depois) cai na fatura do mês
-// seguinte; antes do fechamento, cai na fatura do mês corrente.
-function calcularFatura(dataStr, diaFechamento) {
+// A fatura é identificada pelo mês do vencimento ('YYYY-MM').
+// Compra no dia do fechamento (ou depois) entra no fechamento do mês
+// seguinte; e se o vencimento é num dia menor ou igual ao do fechamento
+// (ex.: fecha 25, vence 5), ele cai no mês depois do fechamento.
+function calcularFatura(dataStr, diaFechamento, diaVencimento) {
   const [ano, mes, dia] = dataStr.split('-').map(Number);
-  let anoF = ano, mesF = mes;
-  if (dia >= diaFechamento) { mesF++; if (mesF > 12) { mesF = 1; anoF++; } }
-  return `${anoF}-${String(mesF).padStart(2,'0')}`;
+  let fatura = `${ano}-${String(mes).padStart(2,'0')}`;
+  if (dia >= diaFechamento) fatura = proximaFatura(fatura);
+  if ((diaVencimento || 10) <= diaFechamento) fatura = proximaFatura(fatura);
+  return fatura;
+}
+function faturaAnterior(fatura) {
+  let [ano, mes] = fatura.split('-').map(Number);
+  mes--; if (mes < 1) { mes = 12; ano--; }
+  return `${ano}-${String(mes).padStart(2,'0')}`;
+}
+// aceita "5000", "5000.50", "5.000" e "5.000,00"
+function lerValorBR(txt) {
+  const t = String(txt || '').trim().replace(/[R$\s]/g, '');
+  if (!t) return 0;
+  if (t.includes(',')) return parseMoney(t);
+  if (/^\d{1,3}(\.\d{3})+$/.test(t)) return parseFloat(t.replace(/\./g, '')) || 0;
+  return parseFloat(t) || 0;
 }
 function proximaFatura(fatura) {
   let [ano, mes] = fatura.split('-').map(Number);
@@ -85,7 +101,7 @@ async function renderCartoes() {
               <div class="d-flex align-items-center justify-content-between mb-2">
                 <strong>${escHtml(c.nome)}</strong>
                 <div class="d-flex align-items-center gap-2">
-                  <span class="badge" style="background:${escHtml(c.cor||'#4361ee')};color:#fff">${fmtMoney(limite)}</span>
+                  <span class="badge" style="background:${escHtml(c.cor||'#4361ee')};color:#fff">${limite>0?fmtMoney(limite):'sem limite'}</span>
                   <button class="btn btn-icon btn-outline-secondary btn-sm" style="width:26px;height:26px" title="Editar / Excluir cartão" onclick='event.stopPropagation();formCartao(${JSON.stringify(c)})'><i class="fas fa-cog" style="font-size:11px"></i></button>
                 </div>
               </div>
@@ -95,7 +111,7 @@ async function renderCartoes() {
                 <div class="progress-bar" style="width:${pct}%;background:${pct>90?'#dc2626':pct>70?'#f59e0b':(c.cor||'#4361ee')}"></div>
               </div>
               <div class="d-flex justify-content-between align-items-center">
-                <small class="text-muted">${pct.toFixed(0)}% do limite usado</small>
+                <small class="text-muted">${limite>0?`${pct.toFixed(0)}% do limite usado`:`${fmtMoney(info.usado)} em aberto`}</small>
                 ${info.vencFaturaAtual ? `<small class="${vencido?'text-danger fw-bold':alerta?'text-warning fw-bold':'text-muted'}">
                   ${vencido?`⚠️ Venceu há ${Math.abs(info.diasVenc)}d`:alerta?`⏰ Vence em ${info.diasVenc}d`:`Vence em ${info.diasVenc}d`}
                 </small>` : '<small class="text-muted">Sem fatura em aberto</small>'}
@@ -188,13 +204,16 @@ function formCartao(c = {}) {
       <input class="form-control" id="ctNome" value="${escHtml(c.nome||'')}" placeholder="Ex: Nubank, Caixa, Riachuelo..."></div>
     <div class="col-md-4"><label class="form-label fw-semibold">COR</label>
       <input type="color" class="form-control form-control-color w-100" id="ctCor" value="${c.cor||'#4361ee'}"></div>
-    <div class="col-md-4"><label class="form-label fw-semibold">LIMITE (R$) *</label>
+    <div class="col-md-4"><label class="form-label fw-semibold">LIMITE (R$)</label>
       <div class="input-group"><span class="input-group-text">R$</span>
-        <input type="number" class="form-control" id="ctLimite" step="0.01" min="0" value="${c.limite||''}"></div></div>
+        <input type="text" inputmode="decimal" class="form-control" id="ctLimite" placeholder="Ex: 5.000,00" value="${c.limite?String(c.limite).replace('.',','):''}"></div>
+      <small class="text-muted">Opcional</small></div>
     <div class="col-md-4"><label class="form-label fw-semibold">DIA DO FECHAMENTO</label>
-      <input type="number" class="form-control" id="ctFechamento" min="1" max="31" value="${c.dia_fechamento||1}"></div>
+      <input type="number" class="form-control" id="ctFechamento" min="1" max="31" value="${c.dia_fechamento||1}">
+      <small class="text-muted">Compras a partir deste dia vão para a fatura seguinte</small></div>
     <div class="col-md-4"><label class="form-label fw-semibold">DIA DO VENCIMENTO</label>
-      <input type="number" class="form-control" id="ctVencimento" min="1" max="31" value="${c.dia_vencimento||10}"></div>
+      <input type="number" class="form-control" id="ctVencimento" min="1" max="31" value="${c.dia_vencimento||10}">
+      <small class="text-muted">Dia em que a fatura vence</small></div>
   </div>`,
   `<button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
    ${c.id?`<button class="btn btn-outline-danger" onclick="delCartao(${c.id},'${escHtml(c.nome||'')}')"><i class="fas fa-trash me-1"></i>Excluir</button>`:''}
@@ -205,9 +224,10 @@ function formCartao(c = {}) {
 async function salvarCartao(id) {
   if (salvandoCartao) return;
   const nome = document.getElementById('ctNome').value.trim();
-  const limite = parseFloat(document.getElementById('ctLimite').value)||0;
+  const limite = lerValorBR(document.getElementById('ctLimite').value);
   if (!nome) { toast('Nome obrigatório','danger'); return; }
-  if (!limite) { toast('Limite obrigatório','danger'); return; }
+  const diaF = parseInt(document.getElementById('ctFechamento').value), diaV = parseInt(document.getElementById('ctVencimento').value);
+  if (!(diaF >= 1 && diaF <= 31) || !(diaV >= 1 && diaV <= 31)) { toast('Dia do fechamento e do vencimento devem ser de 1 a 31','danger'); return; }
   salvandoCartao = true;
   const obj = {
     nome, limite,
@@ -231,7 +251,23 @@ async function delCartao(id, nome) {
 }
 
 // ── Lançamento: form / salvar / excluir ───────────────────────────
+let faturaLancManual = false;
+async function opcoesFaturaLanc(cartaoId) {
+  const cartao = (await getAll('cartoes')).find(c => String(c.id) === String(cartaoId));
+  const sel = document.getElementById('lcFatura');
+  const data = document.getElementById('lcData')?.value;
+  if (!cartao || !sel || !data) return;
+  const calculada = calcularFatura(data, cartao.dia_fechamento || 1, cartao.dia_vencimento);
+  const escolhida = faturaLancManual && sel.value ? sel.value : calculada;
+  const opcoes = [];
+  let f = faturaAnterior(faturaAnterior(faturaAnterior(calculada)));
+  for (let i = 0; i < 7; i++) { opcoes.push(f); f = proximaFatura(f); }
+  if (!opcoes.includes(escolhida)) opcoes.push(escolhida);
+  sel.innerHTML = opcoes.sort().map(o => `<option value="${o}" ${o===escolhida?'selected':''}>${fmtFatura(o)} — vence ${fmtDate(vencimentoDaFatura(o, cartao.dia_vencimento))}${o===calculada?' (pela data da compra)':''}</option>`).join('');
+}
+
 function formLancamentoCartao(cartaoId) {
+  faturaLancManual = false;
   openModal('<i class="fas fa-receipt me-2"></i>Novo Lançamento',
   `<div class="row g-3">
     <div class="col-12"><label class="form-label fw-semibold">DESCRIÇÃO *</label>
@@ -240,7 +276,7 @@ function formLancamentoCartao(cartaoId) {
       <input class="form-control" id="lcCat" list="listaCatCartao" placeholder="Ex: Alimentação...">
       <datalist id="listaCatCartao"><option value="Alimentação"><option value="Vestuário"><option value="Casa"><option value="Lazer"><option value="Transporte"><option value="Saúde"><option value="Outro"></datalist></div>
     <div class="col-md-6"><label class="form-label fw-semibold">DATA DA COMPRA *</label>
-      <input type="date" class="form-control" id="lcData" value="${localDateStr()}"></div>
+      <input type="date" class="form-control" id="lcData" value="${localDateStr()}" onchange="opcoesFaturaLanc(${cartaoId})"></div>
     <div class="col-md-6"><label class="form-label fw-semibold">VALOR ${'TOTAL '}(R$) *</label>
       <div class="input-group"><span class="input-group-text">R$</span>
         <input type="number" class="form-control" id="lcValor" step="0.01" min="0"></div></div>
@@ -248,10 +284,14 @@ function formLancamentoCartao(cartaoId) {
       <select class="form-select" id="lcParcelas">
         ${Array.from({length:24},(_,i)=>i+1).map(n=>`<option value="${n}">${n===1?'À Vista (1x)':n+'x'}</option>`).join('')}
       </select></div>
+    <div class="col-12"><label class="form-label fw-semibold">FATURA (1ª parcela)</label>
+      <select class="form-select" id="lcFatura" onchange="faturaLancManual=true"></select>
+      <small class="text-muted">Já vem escolhida pela data da compra e o dia de fechamento do cartão. Se a compra é de uma fatura anterior, escolha aqui.</small></div>
   </div>`,
   `<button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
    <button class="btn btn-primary" onclick="salvarLancamentoCartao(${cartaoId})"><i class="fas fa-save me-1"></i>Salvar</button>`
   );
+  opcoesFaturaLanc(cartaoId);
 }
 
 async function salvarLancamentoCartao(cartaoId) {
@@ -269,7 +309,8 @@ async function salvarLancamentoCartao(cartaoId) {
     const cartao = (await getAll('cartoes')).find(c => String(c.id) === String(cartaoId));
     const fechamento = cartao?.dia_fechamento || 1;
     const parcela = parseFloat((valorTotal / parcelas).toFixed(2));
-    let fatura = calcularFatura(data, fechamento);
+    let fatura = document.getElementById('lcFatura')?.value || calcularFatura(data, fechamento, cartao?.dia_vencimento);
+    const primeiraFatura = fatura;
     for (let i = 0; i < parcelas; i++) {
       await insert('lancamentos_cartao', {
         cartao_id: cartaoId, descricao, categoria, data,
@@ -281,7 +322,7 @@ async function salvarLancamentoCartao(cartaoId) {
     Cache.clear('lancamentos_cartao');
     toast(parcelas>1 ? `Lançamento salvo! ${parcelas} parcelas geradas.` : 'Lançamento salvo!');
     closeModal();
-    abrirFatura(cartaoId, faturaSelecionada);
+    abrirFatura(cartaoId, primeiraFatura);
   } catch(e) { toast(e.message,'danger'); }
   finally { salvandoLancCartao = false; }
 }
