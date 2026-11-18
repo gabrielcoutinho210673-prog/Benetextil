@@ -185,11 +185,15 @@ function _ofItensUniforme(r) {
 }
 
 function _ofItensSublimacao(r) {
-  const qtd = parseFloat(r.qtd_metro) || 0;
-  const precoUn = parseFloat(r.valor_metro) || 0;
-  return [{
-    produto: 'Sublimação',
-    descricao: [r.descricao, r.tecido, r.cod_cor].filter(Boolean).join(' — '),
-    qtd, precoUn, valorItem: qtd * precoUn
-  }];
+  const itens = itensSublDoRegistro(r).map(it => {
+    const qtd = parseFloat(it.qtd_metro) || 0;
+    const precoUn = parseFloat(it.valor_metro) || 0;
+    return {
+      produto: 'Sublimação',
+      descricao: [it.descricao, it.tecido, it.cod_cor].filter(Boolean).join(' — '),
+      qtd, precoUn, valorItem: qtd * precoUn
+    };
+  });
+  const preenchidos = itens.filter(it => it.qtd > 0 || it.descricao);
+  return preenchidos.length ? preenchidos : itens.slice(0, 1);
 }

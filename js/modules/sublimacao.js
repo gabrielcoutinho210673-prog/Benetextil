@@ -2,6 +2,85 @@
 let sublimacaoSearch = '';
 let sublimacaoMes = '';
 let salvandoSublimacao = false;
+const MAX_ITENS_SUBL = 10;
+
+// Item 1 fica nas colunas antigas (descricao, tecido, qtd_metro...);
+// os itens 2 em diante ficam na coluna itens_extra (jsonb, lista).
+function itensSublDoRegistro(r) {
+  const primeiro = {
+    descricao: r.descricao, tecido: r.tecido, cod_cor: r.cod_cor,
+    qtd_metro: r.qtd_metro, valor_metro: r.valor_metro,
+    compra_tecido_metros: r.compra_tecido_metros, compra_tecido_valor_metro: r.compra_tecido_valor_metro
+  };
+  let extras = r.itens_extra;
+  if (typeof extras === 'string') { try { extras = JSON.parse(extras); } catch(e) { extras = []; } }
+  return [primeiro, ...(Array.isArray(extras) ? extras : [])];
+}
+
+function blocoItemSubl(i, it, visivel) {
+  const val = k => escHtml(it?.[k] ?? '');
+  const custoInicial = (parseFloat(it?.compra_tecido_metros)||0) * (parseFloat(it?.compra_tecido_valor_metro)||0);
+  return `
+  <div class="subl-item mb-2" id="sublItem${i}" style="${visivel?'':'display:none'}">
+    <div class="d-flex align-items-center gap-2 my-2" style="border-bottom:2px solid #4361ee;padding-bottom:4px">
+      <i class="fas fa-paint-brush text-primary"></i><strong class="text-primary">SUBLIMAÇÃO ${i}</strong>
+      ${i>1?`<button type="button" class="btn btn-sm btn-outline-danger ms-auto py-0" onclick="removerItemSubl(${i})"><i class="fas fa-trash me-1"></i>Remover</button>`:''}
+    </div>
+    <div class="row g-2">
+      <div class="col-12"><label class="form-label">Observação</label><input class="form-control" id="sDesc${i}" value="${val('descricao')}" placeholder="Ex: Camiseta polo azul marinho"></div>
+      <div class="col-md-4"><label class="form-label">Tecido</label><input class="form-control" id="sTecido${i}" value="${val('tecido')}" placeholder="Ex: Malha PV, Dry Fit..."></div>
+      <div class="col-md-3"><label class="form-label">Código da Cor do Tecido</label><input class="form-control" id="sCodCor${i}" value="${val('cod_cor')}" placeholder="Ex: 0001, Azul Royal..."></div>
+      <div class="col-md-2"><label class="form-label">Metros usados (m²)</label><input type="number" class="form-control" id="sQtdMetro${i}" step="0.01" min="0" value="${val('qtd_metro')}" oninput="calcTotalSublimacao()" placeholder="0,00"></div>
+      <div class="col-md-3"><label class="form-label">Valor cobrado do cliente/m² (R$)</label><div class="input-group"><span class="input-group-text">R$</span><input type="number" class="form-control" id="sValorMetro${i}" step="0.01" min="0" value="${val('valor_metro')}" oninput="calcTotalSublimacao()"></div></div>
+      <div class="col-md-3"><label class="form-label">Metros comprados</label><input type="number" class="form-control" id="sCompraMetros${i}" step="0.01" min="0" value="${val('compra_tecido_metros')}" oninput="calcTotalSublimacao()" placeholder="0,00"></div>
+      <div class="col-md-3"><label class="form-label">Valor pago por metro (R$)</label><div class="input-group"><span class="input-group-text">R$</span><input type="number" class="form-control" id="sCompraValorM${i}" step="0.01" min="0" value="${val('compra_tecido_valor_metro')}" oninput="calcTotalSublimacao()" placeholder="0,00"></div></div>
+      <div class="col-md-6 d-flex align-items-end gap-2">
+        <div class="p-2 rounded flex-fill text-center" style="background:#d1fae5;border:1px solid #10b981"><div class="small text-muted">Cobrado do cliente</div><strong class="text-success" id="sSubVenda${i}">R$ 0,00</strong></div>
+        <div class="p-2 rounded flex-fill text-center" style="background:#fee2e2;border:1px solid #dc2626"><div class="small text-muted">Custo do tecido</div><strong class="text-danger" id="sSubCusto${i}">${fmtMoney(custoInicial)}</strong></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderItensSubl() {
+  const n = parseInt(document.getElementById('sQtdItens')?.value) || 1;
+  for (let i = 1; i <= MAX_ITENS_SUBL; i++) {
+    const el = document.getElementById('sublItem' + i);
+    if (el) el.style.display = i <= n ? '' : 'none';
+  }
+  const btn = document.getElementById('btnAddItemSubl');
+  if (btn) btn.style.display = n >= MAX_ITENS_SUBL ? 'none' : '';
+}
+
+function adicionarItemSubl() {
+  const el = document.getElementById('sQtdItens');
+  const n = parseInt(el.value) || 1;
+  if (n >= MAX_ITENS_SUBL) return;
+  el.value = n + 1;
+  renderItensSubl();
+  document.getElementById('sublItem' + (n + 1))?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  document.getElementById('sDesc' + (n + 1))?.focus();
+}
+
+function removerItemSubl(i) {
+  const el = document.getElementById('sQtdItens');
+  const n = parseInt(el.value) || 1;
+  if (i !== n) { toast('Remova primeiro a última sublimação (Sublimação ' + n + ')', 'warning'); return; }
+  document.querySelectorAll(`#sublItem${i} input`).forEach(inp => { inp.value = ''; });
+  el.value = n - 1;
+  renderItensSubl();
+  calcTotalSublimacao();
+}
+
+function lerItemSubl(i) {
+  const val = id => document.getElementById(id + i)?.value || '';
+  const num = id => parseFloat(val(id)) || 0;
+  return {
+    descricao: val('sDesc').trim(), tecido: val('sTecido'), cod_cor: val('sCodCor'),
+    qtd_metro: num('sQtdMetro'), valor_metro: num('sValorMetro'),
+    compra_tecido_metros: num('sCompraMetros'), compra_tecido_valor_metro: num('sCompraValorM')
+  };
+}
 
 async function renderSublimacao(search) {
   if (search !== undefined) sublimacaoSearch = search;
@@ -11,7 +90,7 @@ async function renderSublimacao(search) {
 
     const meses = mesesComAno(dados.map(r => r.data_pedido));
 
-    if (sublimacaoSearch) dados = dados.filter(r => (r.descricao+' '+r.tecido+' '+r.cod_cor).toLowerCase().includes(sublimacaoSearch.toLowerCase()));
+    if (sublimacaoSearch) dados = dados.filter(r => itensSublDoRegistro(r).map(it => `${it.descricao||''} ${it.tecido||''} ${it.cod_cor||''}`).join(' ').concat(' ', r.nome_cliente||'').toLowerCase().includes(sublimacaoSearch.toLowerCase()));
     if (sublimacaoMes) dados = dados.filter(r => (r.data_pedido||'').startsWith(sublimacaoMes));
 
     let somaGasto = 0, somaVenda = 0;
@@ -54,13 +133,15 @@ async function renderSublimacao(search) {
             </tr></thead>
             <tbody>
             ${dados.length ? dados.map(r => {
-              const totalMetro = (parseFloat(r.valor_metro)||0)*(parseFloat(r.qtd_metro)||0);
-              const total = [r.uber, r.almoco, r.gasolina, r.estacionamento, r.brim, r.mao_obra_anderson].reduce((s,v)=>s+(parseFloat(v)||0),0);
+              const itens = itensSublDoRegistro(r);
+              const extras = itens.length - 1;
+              const totalMetro = itens.reduce((s,it)=>s+(parseFloat(it.valor_metro)||0)*(parseFloat(it.qtd_metro)||0),0);
+              const total = [r.uber, r.almoco, r.gasolina, r.estacionamento, r.brim, r.mao_obra_anderson, r.compra_tecido_total].reduce((s,v)=>s+(parseFloat(v)||0),0);
               return `<tr>
-                <td class="ps-3"><strong>${escHtml(r.descricao||'—')}</strong></td>
+                <td class="ps-3"><strong>${escHtml(r.descricao||r.nome_cliente||'—')}</strong>${extras?` <span class="badge bg-primary">+${extras} sublimaç${extras>1?'ões':'ão'}</span>`:''}</td>
                 <td><small>${r.data_pedido?fmtDate(r.data_pedido):'—'}</small></td>
                 <td>${escHtml(r.tecido||'—')}<br><small class="text-muted">${escHtml(r.cod_cor||'—')}</small></td>
-                <td><small>${r.qtd_metro||0}m² × ${r.valor_metro?fmtMoney(r.valor_metro):'-'}</small><br><strong>${fmtMoney(totalMetro)}</strong></td>
+                <td><small>${extras?`${itens.length} itens`:`${r.qtd_metro||0}m² × ${r.valor_metro?fmtMoney(r.valor_metro):'-'}`}</small><br><strong>${fmtMoney(totalMetro)}</strong></td>
                 <td>${r.uber?fmtMoney(r.uber):'—'}</td>
                 <td>${r.almoco?fmtMoney(r.almoco):'—'}</td>
                 <td>${r.gasolina?fmtMoney(r.gasolina):'—'}</td>
@@ -83,6 +164,8 @@ async function renderSublimacao(search) {
 
 function formSublimacao(r={}) {
   const v = f => escHtml(r[f]||'');
+  const itensForm = r.id ? itensSublDoRegistro(r) : [{}];
+  const qtdItens = Math.min(Math.max(itensForm.length, 1), MAX_ITENS_SUBL);
   const campo = (id, label, cols='col-md-3') =>
     `<div class="${cols}">
       <label class="form-label">${label}</label>
@@ -108,32 +191,19 @@ function formSublimacao(r={}) {
     <div class="col-12"><label class="form-label fw-semibold">ENDEREÇO</label><input class="form-control" id="sEndereco" value="${v('endereco_cliente')}" placeholder="Endereço do cliente"></div>
 
     <div class="col-12 mt-1"><div class="d-flex align-items-center gap-2 mb-1" style="border-bottom:2px solid #4361ee;padding-bottom:4px">
-      <i class="fas fa-info-circle text-primary"></i><strong class="text-primary">IDENTIFICAÇÃO</strong></div></div>
-    <div class="col-12"><label class="form-label">Observação</label><input class="form-control" id="sDesc" value="${v('descricao')}" placeholder="Ex: Camiseta polo azul marinho"></div>
-
-    <div class="col-12 mt-1"><div class="d-flex align-items-center gap-2 mb-1" style="border-bottom:2px solid #4361ee;padding-bottom:4px">
-      <i class="fas fa-tshirt text-primary"></i><strong class="text-primary">TECIDO — USO NA PRODUÇÃO</strong></div></div>
-    <div class="col-md-4"><label class="form-label">Tecido</label><input class="form-control" id="sTecido" value="${v('tecido')}" placeholder="Ex: Malha PV, Dry Fit..."></div>
-    <div class="col-md-3"><label class="form-label">Código da Cor do Tecido</label><input class="form-control" id="sCodCor" value="${v('cod_cor')}" placeholder="Ex: 0001, Azul Royal..."></div>
-    <div class="col-md-2"><label class="form-label">Metros usados (m²)</label><input type="number" class="form-control" id="qtd_metro" step="0.01" min="0" value="${v('qtd_metro')}" oninput="calcTotalSublimacao()" placeholder="0,00"></div>
-    <div class="col-md-3"><label class="form-label">Valor cobrado do cliente/m² (R$)</label><div class="input-group"><span class="input-group-text">R$</span><input type="number" class="form-control" id="valor_metro" step="0.01" min="0" value="${v('valor_metro')}" oninput="calcTotalSublimacao()"></div></div>
-    <div class="col-12"><div class="d-flex align-items-center gap-2 px-2 py-1 rounded" style="background:#d1fae5;border:1px solid #10b981">
-      <i class="fas fa-tag text-success"></i>
-      <small class="text-muted fw-semibold">Valor cobrado do cliente pelo tecido:</small>
-      <strong class="text-success" id="subTotalMetro">R$ 0,00</strong>
-      <small class="text-muted ms-1">(não entra no Total Gasto)</small>
-    </div></div>
-
-    <div class="col-12 mt-2"><div class="d-flex align-items-center gap-2 mb-1" style="border-bottom:2px solid #dc2626;padding-bottom:4px">
-      <i class="fas fa-shopping-cart text-danger"></i><strong class="text-danger">COMPRA DO TECIDO</strong>
-      <small class="text-muted">(custo real pago por você)</small></div></div>
-    <div class="col-md-3"><label class="form-label">Metros comprados</label><input type="number" class="form-control" id="compra_tecido_metros" step="0.01" min="0" value="${v('compra_tecido_metros')}" oninput="calcTotalSublimacao()" placeholder="0,00"></div>
-    <div class="col-md-3"><label class="form-label">Valor pago por metro (R$)</label><div class="input-group"><span class="input-group-text">R$</span><input type="number" class="form-control" id="compra_tecido_valor_metro" step="0.01" min="0" value="${v('compra_tecido_valor_metro')}" oninput="calcTotalSublimacao()" placeholder="0,00"></div></div>
-    <div class="col-md-3"><label class="form-label">Total gasto na compra (R$)</label><div class="input-group"><span class="input-group-text">R$</span><input type="number" class="form-control" id="compra_tecido_total" step="0.01" min="0" value="${v('compra_tecido_total')}" oninput="calcTotalSublimacao()" placeholder="ou digite direto" style="background:#fff5f5"></div></div>
-    <div class="col-md-3 d-flex align-items-end"><div class="p-2 rounded w-100 text-center" style="background:#fee2e2;border:1px solid #dc2626">
-      <div class="small text-muted">Custo do tecido</div>
-      <strong class="text-danger" id="subCustoTecido">R$ 0,00</strong>
-      <div class="small text-muted">(entra no Total Gasto)</div>
+      <i class="fas fa-layer-group text-primary"></i><strong class="text-primary">SUBLIMAÇÕES DO PEDIDO</strong>
+      <small class="text-muted">(tecido usado, valor cobrado e compra do tecido de cada uma)</small></div></div>
+    <input type="hidden" id="sQtdItens" value="${qtdItens}">
+    <div class="col-12">
+      ${Array.from({length: MAX_ITENS_SUBL}, (_, k) => blocoItemSubl(k + 1, itensForm[k] || {}, k < qtdItens)).join('')}
+    </div>
+    <div class="col-12">
+      <button type="button" class="btn btn-outline-primary btn-sm" id="btnAddItemSubl" style="${qtdItens>=MAX_ITENS_SUBL?'display:none':''}" onclick="adicionarItemSubl()"><i class="fas fa-plus me-1"></i>Adicionar sublimação</button>
+      <small class="text-muted ms-2">Até ${MAX_ITENS_SUBL} sublimações no mesmo pedido</small>
+    </div>
+    <div class="col-12"><div class="d-flex align-items-center gap-3 flex-wrap px-3 py-2 rounded" style="background:#f8f9fa;border:1px solid #dee2e6">
+      <span><i class="fas fa-tag text-success me-1"></i><small class="text-muted fw-semibold">Total cobrado pelo tecido:</small> <strong class="text-success" id="subTotalMetro">R$ 0,00</strong></span>
+      <span><i class="fas fa-shopping-cart text-danger me-1"></i><small class="text-muted fw-semibold">Custo total do tecido:</small> <strong class="text-danger" id="subCustoTecido">R$ 0,00</strong> <small class="text-muted">(entra no Total Gasto)</small></span>
     </div></div>
 
     <div class="col-12 mt-1"><div class="d-flex align-items-center gap-2 mb-1" style="border-bottom:2px solid #4361ee;padding-bottom:4px">
@@ -261,19 +331,20 @@ function limparClienteSubl() {
 }
 
 function calcTotalSublimacao() {
-  const qtd = parseFloat(document.getElementById('qtd_metro')?.value)||0;
-  const vMetro = parseFloat(document.getElementById('valor_metro')?.value)||0;
-  const totalMetro = qtd * vMetro;
+  const n = parseInt(document.getElementById('sQtdItens')?.value) || 1;
+  let totalMetro = 0, custoTecidoTotal = 0;
+  for (let i = 1; i <= n; i++) {
+    const it = lerItemSubl(i);
+    const venda = it.qtd_metro * it.valor_metro;
+    const custo = it.compra_tecido_metros * it.compra_tecido_valor_metro;
+    totalMetro += venda; custoTecidoTotal += custo;
+    const eV = document.getElementById('sSubVenda' + i); if (eV) eV.textContent = fmtMoney(venda);
+    const eC = document.getElementById('sSubCusto' + i); if (eC) eC.textContent = fmtMoney(custo);
+  }
   const subEl = document.getElementById('subTotalMetro');
-  if (subEl) subEl.textContent = totalMetro.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
-
-  const compraMetros = parseFloat(document.getElementById('compra_tecido_metros')?.value)||0;
-  const compraValorM = parseFloat(document.getElementById('compra_tecido_valor_metro')?.value)||0;
-  const custoTecidoTotal = compraMetros * compraValorM;
-  const elTotal = document.getElementById('compra_tecido_total');
-  if (elTotal) elTotal.value = custoTecidoTotal > 0 ? custoTecidoTotal.toFixed(2) : '';
+  if (subEl) subEl.textContent = fmtMoney(totalMetro);
   const subCustoEl = document.getElementById('subCustoTecido');
-  if (subCustoEl) subCustoEl.textContent = custoTecidoTotal.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+  if (subCustoEl) subCustoEl.textContent = fmtMoney(custoTecidoTotal);
 
   const vendaEl = document.getElementById('sValorVenda');
   const tecidoVendaEl = document.getElementById('sValorTecidoVenda');
@@ -304,7 +375,10 @@ async function salvarSublimacao(id, outro) {
   if (!dEnt) { toast('Informe a Data de Entrega','danger'); return; }
   if (dEnt < dPed) { toast('A Data de Entrega não pode ser anterior à Data do Pedido','danger'); return; }
   salvandoSublimacao = true;
-  const descricao = document.getElementById('sDesc').value.trim();
+  const nItens = parseInt(document.getElementById('sQtdItens')?.value) || 1;
+  const itens = Array.from({length: nItens}, (_, k) => lerItemSubl(k + 1));
+  const item1 = itens[0];
+  const descricao = item1.descricao;
   const data = {
     descricao,
     nome_cliente:     document.getElementById('sNomeCliente').value.trim(),
@@ -312,13 +386,15 @@ async function salvarSublimacao(id, outro) {
     data_pedido:      document.getElementById('sDataPedido').value,
     data_entrega:     document.getElementById('sDataEntrega').value || null,
     endereco_cliente: document.getElementById('sEndereco').value.trim(),
-    tecido:      document.getElementById('sTecido').value,
-    cod_cor:     document.getElementById('sCodCor').value,
-    qtd_metro:                parseFloat(document.getElementById('qtd_metro').value)||0,
-    valor_metro:              parseFloat(document.getElementById('valor_metro').value)||0,
-    compra_tecido_metros:     parseFloat(document.getElementById('compra_tecido_metros')?.value)||0,
-    compra_tecido_valor_metro:parseFloat(document.getElementById('compra_tecido_valor_metro')?.value)||0,
-    compra_tecido_total:      parseFloat(document.getElementById('compra_tecido_total')?.value)||0,
+    tecido:                   item1.tecido,
+    cod_cor:                  item1.cod_cor,
+    qtd_metro:                item1.qtd_metro,
+    valor_metro:              item1.valor_metro,
+    compra_tecido_metros:     item1.compra_tecido_metros,
+    compra_tecido_valor_metro:item1.compra_tecido_valor_metro,
+    // totais do pedido (todas as sublimações) — usados nos cards, relatórios e Contas a Pagar
+    compra_tecido_total:      Math.round(itens.reduce((s,it)=>s+it.compra_tecido_metros*it.compra_tecido_valor_metro,0)*100)/100,
+    itens_extra:              itens.slice(1),
     uber:           parseFloat(document.getElementById('uber').value)||0,
     almoco:         parseFloat(document.getElementById('almoco').value)||0,
     gasolina:       parseFloat(document.getElementById('gasolina').value)||0,
