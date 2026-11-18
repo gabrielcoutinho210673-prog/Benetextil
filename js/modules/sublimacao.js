@@ -408,9 +408,22 @@ async function salvarSublimacao(id, outro) {
   };
   const rotulo = descricao || data.nome_cliente || data.tecido || 'Sublimação';
 
+  // Banco sem a coluna itens_extra (SQL supabase_sublimacao_itens.sql não rodado):
+  // pedido com 1 sublimação salva sem ela; com mais de uma, avisa o que falta.
+  const semColunaItens = e => /itens_extra/.test(e?.message || '');
+  const gravar = async (fn) => {
+    try { return await fn(data); }
+    catch (e) {
+      if (!semColunaItens(e)) throw e;
+      if (itens.length > 1) throw new Error('Para salvar mais de uma sublimação no pedido, falta rodar o SQL supabase_sublimacao_itens.sql no Supabase. Com uma sublimação só, já dá para salvar.');
+      const { itens_extra, ...semExtras } = data;
+      return await fn(semExtras);
+    }
+  };
+
   try {
     if (id) {
-      await update('sublimacao',id,data);
+      await gravar(d => update('sublimacao', id, d));
 
       // preenche lançamentos que faltaram (ex: registro editado depois de criado
       // sem valor de venda/gasto ainda calculado) — nunca duplica o que já existe.
@@ -477,7 +490,7 @@ async function salvarSublimacao(id, outro) {
       }
       toast('Registro atualizado!');
     } else {
-      const novo = await insert('sublimacao', data);
+      const novo = await gravar(d => insert('sublimacao', d));
       const tag = `Sublimação #${novo.id}`;
       const vencCusto = data.data_entrega || data.data_pedido || localDateStr();
       if (data.compra_tecido_total > 0) {
